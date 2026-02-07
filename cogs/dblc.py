@@ -12,6 +12,7 @@ import io
 from PIL import Image, ImageDraw, ImageFont
 from collections import deque
 from config import BOLDFONT_PATH
+from core.framework_version import framework_version
 
 class Dblc(commands.Cog):
     def __init__(self, bot):
@@ -349,7 +350,8 @@ class Dblc(commands.Cog):
         embed = discord.Embed(
             title="Latency Info",
             description=(
-                f"> Bot Version: `{bot_version}`\n\n"
+                f"> Bot Version: `{bot_version}`\n"
+                f"> Powered by Dopamine Framework {framework_version}`\n\n"
                 f"> Connected to Discord Gateway: `{gateway_node}`\n"
                 "> Bot Host Location: `South Asia`\n\n"
                 f"> API Latency: `{connection_latency}ms`\n"
