@@ -1063,17 +1063,17 @@ class Points(commands.Cog):
 
         await self._add_infraction(interaction, member, amount, reason, delete_messages)
 
-    @app_commands.command(name="warn", description="Issue a warning (Add 1 warning to user).")
+    @app_commands.command(name="warn", description="Issue a warning (Add 1 or more warnings to user).")
     @app_commands.check(slash_mod_check)
     @app_commands.describe(delete_messages="Delete the user's messages across all channels (up to 14 days old).")
-    async def warn(self, interaction: discord.Interaction, member: discord.Member, reason: Optional[str] = None,
+    async def warn(self, interaction: discord.Interaction, member: discord.Member, amount: int = 1, reason: Optional[str] = None,
                    delete_messages: bool = False):
         settings = self.settings_cache.get(interaction.guild.id, {})
         if settings.get("simple_mode", 0) == 0:
             return await interaction.response.send_message("Simple Mode is disabled. Use `/point` instead.",
                                                            ephemeral=True)
 
-        await self._add_infraction(interaction, member, 1, reason, delete_messages)
+        await self._add_infraction(interaction, member, amount, reason, delete_messages)
 
     async def _add_infraction(self, interaction: discord.Interaction, member: discord.Member, amount: int, reason: str, delete_messages: bool = False):
         await interaction.response.defer()
@@ -1082,13 +1082,11 @@ class Points(commands.Cog):
             def is_user(m):
                 return m.author.id == member.id
 
+            tasks = []
             for channel in interaction.guild.text_channels:
-                try:
-                    await channel.purge(limit=None, check=is_user, bulk=True)
-                except discord.Forbidden:
-                    continue
-                except Exception:
-                    continue
+                tasks.append(channel.purge(limit=100, check=is_user, bulk=True))
+
+            asyncio.gather(*tasks, return_exceptions=True)
 
         data = await self.get_user_data(interaction.guild.id, member.id)
         new_points = max(0, data["points"] + amount)
