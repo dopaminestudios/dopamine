@@ -363,7 +363,7 @@ class ParticipantPaginator(discord.ui.View):
         embed = discord.Embed(
             title=f"<:dopamine:1445805701355012279> Participants for **{self.prize}**",
             description=mentions,
-            color=discord.Color(0x8632e6)
+            color=discord.Color(0x944ae8)
         )
         embed.set_footer(text=f"Total Participants: {total_count} | Page {self.current_page + 1} of {total_pages}")
         return embed
@@ -481,7 +481,7 @@ class GiveawayPreviewView(PrivateView):
 
         await interaction.response.send_message(
             embed=discord.Embed(title="Edit Giveaway", description="Select a setting...",
-                                color=discord.Color(0x8632e6)),
+                                color=discord.Color(0x944ae8)),
             view=view,
             ephemeral=True
         )
@@ -1790,7 +1790,7 @@ class Giveaways(commands.Cog):
 
     def create_giveaway_embed(self, draft: GiveawayDraft, ended: bool = False, preview_active_end: int = None):
         title_text = "GIVEAWAY ENDED" if ended else f"{draft.prize}"
-        embed_color = discord.Color.red() if ended else discord.Color(0x8632e6)
+        embed_color = discord.Color.red() if ended else discord.Color(0x944ae8)
 
         if not ended and draft.color:
             color_str = draft.color.lower()
@@ -2313,7 +2313,7 @@ class Giveaways(commands.Cog):
         embed = discord.Embed(
             title=f"All Giveaways for {interaction.guild.name}",
             description=full_list,
-            color=discord.Color(0x8632e6)
+            color=discord.Color(0x944ae8)
         )
         await interaction.edit_original_response(embed=embed)
 

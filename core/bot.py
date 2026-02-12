@@ -30,7 +30,6 @@ class Bot(commands.Bot):
 
     async def setup_hook(self):
         self.logger = LoggingManager()
-        self.monitor.monitor_connection.start()
 
         cogs_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cogs")
         if os.path.exists(cogs_dir):

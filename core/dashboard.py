@@ -165,12 +165,12 @@ class OwnerDashboard(PrivateLayoutView):
 
     async def sync_callback(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        self.registry.force_sync(guild=None)
+        await self.registry.force_sync(guild=None)
         await interaction.followup_send("Synced slash commands globally successfully.", ephemeral=True)
 
     async def sync_local_callback(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        self.registry.force_sync(guild=interaction.guild)
+        await self.registry.force_sync(guild=interaction.guild)
         await interaction.followup_send("Synced slash commands in this guild successfully.", ephemeral=True)
 
 

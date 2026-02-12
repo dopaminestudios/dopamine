@@ -364,7 +364,7 @@ class Dblc(commands.Cog):
                 f"> Memory Usage: `{memory_usage}`\n"
                 f"> {battery_status}"
             ),
-            color=discord.Color(0x8632e6)
+            color=discord.Color(0x944ae8)
         )
         message = await interaction.original_response()
         await message.edit(content=None, embed=embed)
