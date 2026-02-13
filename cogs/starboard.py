@@ -8,6 +8,7 @@ from typing import Optional, Dict, Set, Tuple, Any
 import time
 from contextlib import asynccontextmanager
 from config import SDB_PATH
+from dopamineframework import PrivateLayoutView
 
 
 class ThresholdModal(discord.ui.Modal, title="Edit Star Threshold"):
@@ -36,21 +37,6 @@ class ThresholdModal(discord.ui.Modal, title="Edit Star Threshold"):
 
         self.view.build_layout()
         await interaction.response.edit_message(view=self.view)
-
-
-class PrivateLayoutView(discord.ui.LayoutView):
-    def __init__(self, user, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.user = user
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id != self.user.id:
-            await interaction.response.send_message(
-                "This isn't for you!",
-                ephemeral=True
-            )
-            return False
-        return True
 
 
 class StarboardDashboard(PrivateLayoutView):

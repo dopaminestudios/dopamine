@@ -6,8 +6,9 @@ import asyncio
 from typing import Optional, Dict, Any, List
 from contextlib import asynccontextmanager
 from config import MCTDB_PATH
-from utils.checks import slash_mod_check
+from dopamineframework import mod_check
 import re
+from dopamineframework import PrivateLayoutView
 
 
 class MemberTrackerEditModal(discord.ui.Modal, title="Edit Member Tracker Settings"):
@@ -85,21 +86,6 @@ class MemberTrackerEditModal(discord.ui.Modal, title="Edit Member Tracker Settin
             await interaction.edit_original_response(view=self.dashboard_view)
         else:
             await interaction.response.edit_message(view=self.dashboard_view)
-
-
-class PrivateLayoutView(discord.ui.LayoutView):
-    def __init__(self, user, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.user = user
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id != self.user.id:
-            await interaction.response.send_message(
-                "This isn't for you!",
-                ephemeral=True
-            )
-            return False
-        return True
 
 
 class DestructiveConfirmationView(PrivateLayoutView):
@@ -505,7 +491,7 @@ class MemberCountTracker(commands.Cog):
 
     member = app_commands.Group(name="member", description="Member Tracker commands")
     @member.command(name="tracker", description="Open the dashboard for Member Tracker.")
-    @app_commands.check(slash_mod_check)
+    @app_commands.check(mod_check)
     async def member_tracker_dashboard(self, interaction: discord.Interaction):
         view = TrackerDashboard(self, interaction.user, interaction.guild)
         await interaction.response.send_message(view=view)

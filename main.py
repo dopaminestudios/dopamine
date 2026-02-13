@@ -6,11 +6,12 @@ import sys
 import signal
 import asyncio
 import discord
+from discord import CustomActivity
 from discord.ext import commands, tasks
 from config import TOKEN, LOGGING_DEBUG_MODE
 from logging.handlers import RotatingFileHandler
-from core.bot import Bot
-from core.dashboard import OwnerDashboard
+from dopamineframework import Bot
+import traceback
 
 if not TOKEN:
     raise SystemExit("ERROR: Set DISCORD_TOKEN in a .env in root folder.")
@@ -44,15 +45,16 @@ intents.message_content = True
 intents.members = True
 intents.reactions = True
 
-bot = Bot(intents=intents)
+activity = discord.Streaming(name="✨ Testing v3.0.0 beta!", url="https://www.twitch.tv/dopaminediscordbot")
 
-@bot.tree.command(name="od", description=".")
-async def zc(interaction: discord.Interaction):
-    if not await bot.is_owner(interaction.user):
-        await interaction.response.send_message("🤫", ephemeral=True)
-        return
-    view = OwnerDashboard(bot, interaction.user)
-    await interaction.response.send_message(view=view, ephemeral=True)
+bot = Bot(
+    command_prefix="!!",
+    cogs_path="cogs",
+    default_diagnostics=False,
+    activity=activity,
+    status=discord.Status.dnd,
+    intents=intents
+)
 
 if __name__ == "__main__":
     async def main_async():
@@ -61,6 +63,7 @@ if __name__ == "__main__":
                 await bot.start(TOKEN)
         except Exception as e:
             print(f"ERROR: Failed to start the bot: {e}")
+            traceback.print_exc()
 
 
     asyncio.run(main_async())

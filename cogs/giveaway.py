@@ -9,6 +9,7 @@ import asyncio
 import aiosqlite
 from datetime import datetime, timezone
 from discord.ui import TextDisplay
+from dopamineframework import PrivateLayoutView, PrivateView
 
 from config import GDB_PATH
 from utils.time import get_duration_to_seconds, get_now_plus_seconds_unix
@@ -37,36 +38,6 @@ class GiveawayDraft:
     image: Optional[str] = None
     thumbnail: Optional[str] = None
     color: str = "discord.Color(0x944ae8)"
-
-
-class PrivateView(discord.ui.View):
-    def __init__(self, user, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.user = user
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id != self.user.id:
-            await interaction.response.send_message(
-                "This isn't for you!",
-                ephemeral=True
-            )
-            return False
-        return True
-
-
-class PrivateLayoutView(discord.ui.LayoutView):
-    def __init__(self, user, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.user = user
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id != self.user.id:
-            await interaction.response.send_message(
-                "This isn't for you!",
-                ephemeral=True
-            )
-            return False
-        return True
 
 
 class CreateChoose(PrivateLayoutView):

@@ -6,9 +6,9 @@ import aiosqlite
 from typing import Optional, Dict, List, Any
 import time
 from contextlib import asynccontextmanager
-
+from dopamineframework import PrivateLayoutView
 from config import STICKYDB_PATH
-from utils.checks import slash_mod_check
+from dopamineframework import mod_check
 
 
 
@@ -42,18 +42,6 @@ def parse_color(value: str) -> Optional[discord.Color]:
             pass
 
     return None
-
-
-class PrivateLayoutView(discord.ui.LayoutView):
-    def __init__(self, user, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.user = user
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id != self.user.id:
-            await interaction.response.send_message("This isn't for you!", ephemeral=True)
-            return False
-        return True
 
 
 class DestructiveConfirmationView(PrivateLayoutView):
@@ -733,7 +721,7 @@ class StickyMessages(commands.Cog):
     sticky_group = app_commands.Group(name="sticky", description="Sticky message commands")
 
     @sticky_group.command(name="message", description="Open the Sticky Message Dashboard")
-    @app_commands.check(slash_mod_check)
+    @app_commands.check(mod_check)
     async def sticky_dashboard(self, interaction: discord.Interaction):
         await interaction.response.send_message(view=StickyDashboard(interaction.user, self, interaction.guild.id))
 

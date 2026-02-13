@@ -9,12 +9,12 @@ from datetime import datetime, timedelta
 from typing import Dict, Optional, List, Any, Union
 from contextlib import asynccontextmanager
 from config import DB_PATH
-from utils.checks import slash_mod_check
+from dopamineframework import mod_check
 from utils.log import LoggingManager
+from dopamineframework import PrivateLayoutView
 
 
 def parse_duration(duration_str: str) -> Optional[int]:
-    """Parses a string like '3 days', '1 week' into seconds. Returns None if invalid or 0 if permanent."""
     if not duration_str or duration_str.lower() in ["permanent", "perm", "0", "infinite"]:
         return 0
 
@@ -58,22 +58,6 @@ def format_duration_str(seconds: int) -> str:
         return f"{weeks} Week{'s' if weeks != 1 else ''}"
     months = days // 30
     return f"{months} Month{'s' if months != 1 else ''}"
-
-
-class PrivateLayoutView(discord.ui.LayoutView):
-    def __init__(self, user, cog, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.user = user
-        self.cog = cog
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id != self.user.id:
-            await interaction.response.send_message(
-                "This isn't for you!",
-                ephemeral=True
-            )
-            return False
-        return True
 
 
 class ConfirmationView(PrivateLayoutView):
@@ -1040,7 +1024,7 @@ class Points(commands.Cog):
     mod_group = app_commands.Group(name="moderation", description="Moderation system settings")
 
     @mod_group.command(name="dashboard", description="Open the moderation dashboard.")
-    @app_commands.check(slash_mod_check)
+    @app_commands.check(mod_check)
     async def moderation_dashboard(self, interaction: discord.Interaction):
         if interaction.guild.id not in self.settings_cache:
             async with self.acquire_db() as db:
@@ -1052,7 +1036,7 @@ class Points(commands.Cog):
         await interaction.response.send_message(view=ModerationDashboard(interaction.user, self))
 
     @app_commands.command(name="point", description="Add points to a user.")
-    @app_commands.check(slash_mod_check)
+    @app_commands.check(mod_check)
     @app_commands.describe(delete_messages="Delete the user's messages across all channels (up to 14 days old).")
     async def point(self, interaction: discord.Interaction, member: discord.Member, amount: int,
                     reason: Optional[str] = None, delete_messages: bool = False):
@@ -1064,7 +1048,7 @@ class Points(commands.Cog):
         await self._add_infraction(interaction, member, amount, reason, delete_messages)
 
     @app_commands.command(name="warn", description="Issue a warning (Add 1 or more warnings to user).")
-    @app_commands.check(slash_mod_check)
+    @app_commands.check(mod_check)
     @app_commands.describe(delete_messages="Delete the user's messages across all channels (up to 14 days old).")
     async def warn(self, interaction: discord.Interaction, member: discord.Member, amount: int = 1, reason: Optional[str] = None,
                    delete_messages: bool = False):
@@ -1119,7 +1103,7 @@ class Points(commands.Cog):
         await self.apply_punishment(interaction, member, new_points, reason)
 
     @app_commands.command(name="pardon", description="Remove points/warnings from a user.")
-    @app_commands.check(slash_mod_check)
+    @app_commands.check(mod_check)
     async def pardon(self, interaction: discord.Interaction, member: discord.Member, amount: int,
                      reason: Optional[str] = None):
         data = await self.get_user_data(interaction.guild.id, member.id)
@@ -1151,7 +1135,7 @@ class Points(commands.Cog):
                 await log_ch.send(embed=log_embed)
 
     @app_commands.command(name="unban", description="Unban a user.")
-    @app_commands.check(slash_mod_check)
+    @app_commands.check(mod_check)
     async def unban(self, interaction: discord.Interaction, user: discord.User, reason: Optional[str] = None):
         try:
             await interaction.guild.unban(user, reason=f"Unbanned by {interaction.user}: {reason}")
@@ -1183,7 +1167,7 @@ class Points(commands.Cog):
                 await log_ch.send(embed=log_embed)
 
     @app_commands.command(name="points", description="Show points info.")
-    @app_commands.check(slash_mod_check)
+    @app_commands.check(mod_check)
     async def points_lookup_slash(self, interaction: discord.Interaction, user: discord.User):
         settings = self.settings_cache.get(interaction.guild.id, {})
         if settings.get("simple_mode", 0) == 1:
@@ -1192,7 +1176,7 @@ class Points(commands.Cog):
         await self._show_info(interaction, user, "Points")
 
     @app_commands.command(name="warnings", description="Show warnings info.")
-    @app_commands.check(slash_mod_check)
+    @app_commands.check(mod_check)
     async def warnings_lookup(self, interaction: discord.Interaction, user: discord.User):
         settings = self.settings_cache.get(interaction.guild.id, {})
         if settings.get("simple_mode", 0) == 0:

@@ -8,9 +8,9 @@ import io
 from typing import Optional, Dict, Any
 from contextlib import asynccontextmanager
 from PIL import Image, ImageDraw, ImageFont, ImageOps
-
+from dopamineframework import PrivateLayoutView
 from config import WDB_PATH, WELCOMECARD_PATH, BOLDFONT_PATH, MEDIUMFONT_PATH
-from utils.checks import slash_mod_check
+from dopamineframework import mod_check
 
 def get_ordinal(n):
     if 11 <= (n % 100) <= 13:
@@ -88,20 +88,6 @@ class ChannelSelectView(discord.ui.View):
         channel = select.values[0]
         await self.callback_func(interaction, channel)
         self.stop()
-
-class PrivateLayoutView(discord.ui.LayoutView):
-    def __init__(self, user, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.user = user
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id != self.user.id:
-            await interaction.response.send_message(
-                "This isn't for you!",
-                ephemeral=True
-            )
-            return False
-        return True
 
 
 class DestructiveConfirmationView(PrivateLayoutView):
@@ -636,7 +622,7 @@ class Welcome(commands.Cog):
                 self.member_count_cache.pop(member.guild.id)
 
     @app_commands.command(name="welcome", description="Open the welcome feature dashboard.")
-    @app_commands.check(slash_mod_check)
+    @app_commands.check(mod_check)
     async def welcome_dashboard(self, interaction: discord.Interaction):
         await interaction.response.send_message(
             view=CV2Helper(self, interaction.guild.id, interaction.user)

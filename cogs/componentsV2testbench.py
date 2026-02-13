@@ -1,20 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-
-class PrivateLayoutView(discord.ui.LayoutView):
-    def __init__(self, user, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.user = user
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id != self.user.id:
-            await interaction.response.send_message(
-                "This isn't for you!",
-                ephemeral=True
-            )
-            return False
-        return True
+from dopamineframework import PrivateLayoutView
 
 class TemplateHomepage(PrivateLayoutView):
     def __init__(self):

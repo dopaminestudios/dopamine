@@ -10,7 +10,8 @@ from typing import Optional, List, Dict, Tuple, Any, AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime
 from config import SMDB_PATH
-from utils.checks import slash_mod_check
+from dopamineframework import mod_check
+from dopamineframework import PrivateLayoutView
 
 
 class CreateRepeatingMessageModal(Modal):
@@ -161,20 +162,6 @@ class EditFrequencyModal(Modal):
         self.parent_view.panel_data["frequency_seconds"] = seconds
         self.parent_view.build_layout()
         await interaction.response.edit_message(view=self.parent_view)
-
-class PrivateLayoutView(discord.ui.LayoutView):
-    def __init__(self, user, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.user = user
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id != self.user.id:
-            await interaction.response.send_message(
-                "This isn't for you!",
-                ephemeral=True
-            )
-            return False
-        return True
 
 
 class RepeatingMessagesDashboard(PrivateLayoutView):
@@ -769,7 +756,7 @@ class RepeatingMessages(commands.Cog):
 
     repeating = app_commands.Group(name="repeating", description="Repeating Message commands")
     @repeating.command(name="message", description="Open the Repeating Messages Dashboard")
-    @app_commands.check(slash_mod_check)
+    @app_commands.check(mod_check)
     async def dashboard(self, interaction: discord.Interaction):
         await interaction.response.send_message(
             view=RepeatingMessagesDashboard(interaction.user, self)

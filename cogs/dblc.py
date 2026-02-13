@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
-from utils.checks import slash_mod_check, mod_check
+from dopamineframework import mod_check
 from utils.log import LoggingManager
 from VERSION import bot_version
 import time
@@ -151,7 +151,7 @@ class Dblc(commands.Cog):
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="purge", description="Delete recent messages.")
-    @app_commands.check(slash_mod_check)
+    @app_commands.check(mod_check)
     @app_commands.checks.has_permissions(manage_messages=True)
     @app_commands.describe(number="Number of messages to delete (max 100)")
     async def purge(self, interaction: discord.Interaction, number: int):
@@ -224,7 +224,7 @@ class Dblc(commands.Cog):
                     pass
 
     @app_commands.command(name="echo", description="Make the bot say a message in a channel.")
-    @app_commands.check(slash_mod_check)
+    @app_commands.check(mod_check)
     @app_commands.describe(channel="Where to send the message", message="What to say")
     async def echo(self, interaction: discord.Interaction, channel: discord.TextChannel, message: str):
         try:

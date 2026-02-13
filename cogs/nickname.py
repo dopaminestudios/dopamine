@@ -7,7 +7,7 @@ from discord.ext import commands, tasks
 from typing import Dict, List, Optional, Set, Tuple
 import re
 from config import NFDB_PATH, DB_PATH
-from utils.checks import slash_mod_check
+from dopamineframework import mod_check
 from contextlib import asynccontextmanager
 from utils.log import LoggingManager
 
@@ -477,7 +477,7 @@ class Nickname(commands.Cog):
     moderator_group = app_commands.Group(name="moderator", description="Nickname Moderator commands group", parent=nickname_group)
 
     @moderator_group.command(name="verify", description="Verify a user's nickname to make them immune to the moderation.")
-    @app_commands.check(slash_mod_check)
+    @app_commands.check(mod_check)
     async def verify_user(self, interaction: discord.Interaction, member: discord.Member):
         guild_id = interaction.guild.id
         user_id = member.id
@@ -514,7 +514,7 @@ class Nickname(commands.Cog):
         await interaction.response.send_message(embed=status_embed, ephemeral=True)
 
     @moderator_group.command(name="panel", description="Open the Nickname Moderator settings and info panel.")
-    @app_commands.check(slash_mod_check)
+    @app_commands.check(mod_check)
 
 
     async def nickname_panel(self, interaction: discord.Interaction):
@@ -557,7 +557,7 @@ class Nickname(commands.Cog):
         await interaction.response.send_message(embed=embed, view=view)
 
     @moderator_group.command(name="verified", description="List all verified members.")
-    @app_commands.check(slash_mod_check)
+    @app_commands.check(mod_check)
     async def list_verified(self, interaction: discord.Interaction):
         guild_id = interaction.guild.id
         verified_ids = list(self.verifiedcache.get(guild_id, set()))
@@ -607,7 +607,7 @@ class Nickname(commands.Cog):
         await ctx.send(embed=discord.Embed(title="Updated Database Successfully", description=f"Successfully added `{len(new_words)}` to the profanity database."))
 
     @moderator_group.command(name="scan", description="Scan all members and reset names. (3-day cooldown)")
-    @app_commands.check(slash_mod_check)
+    @app_commands.check(mod_check)
     async def force_scan(self, interaction: discord.Interaction):
         guild_id = interaction.guild_id
         now = int(discord.utils.utcnow().timestamp())

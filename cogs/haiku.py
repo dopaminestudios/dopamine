@@ -11,7 +11,7 @@ from discord import app_commands
 from discord.ext import commands, tasks
 
 from config import HDDB_PATH, HWDDB_PATH
-from utils.checks import slash_mod_check
+from dopamineframework import mod_check
 
 
 class HaikuDetector(commands.Cog):
@@ -291,7 +291,7 @@ class HaikuDetector(commands.Cog):
     detection_group = app_commands.Group(name="detection", description="Haiku detection settings", parent=haiku_group)
 
     @detection_group.command(name="enable", description="Enable haiku detection for the whole server")
-    @app_commands.check(slash_mod_check)
+    @app_commands.check(mod_check)
     async def enable_haiku_detection(self, interaction: discord.Interaction):
         if not await self.bot.get_cog('TopGGVoter').check_vote_access(interaction.user.id):
             embed = discord.Embed(
@@ -320,7 +320,7 @@ class HaikuDetector(commands.Cog):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @detection_group.command(name="disable", description="Disable haiku detection for the server")
-    @app_commands.check(slash_mod_check)
+    @app_commands.check(mod_check)
     async def disable_haiku_detection(self, interaction: discord.Interaction):
         if not await self.bot.get_cog('TopGGVoter').check_vote_access(interaction.user.id):
             embed = discord.Embed(

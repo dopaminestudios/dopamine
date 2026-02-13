@@ -7,9 +7,9 @@ import time
 import re
 from typing import Optional, List, Dict, Tuple, Set, Any
 from contextlib import asynccontextmanager
-
+from dopamineframework import PrivateLayoutView
 from config import ARDB_PATH
-from utils.checks import slash_mod_check
+from dopamineframework import mod_check
 
 EMOJI_REGEX = re.compile(
     r'(<a?:\w{2,32}:\d{15,25}>)'
@@ -148,21 +148,6 @@ class GoToPageModal(discord.ui.Modal):
                 "Invalid input. Please enter a valid whole number.",
                 ephemeral=True
             )
-
-
-class PrivateLayoutView(discord.ui.LayoutView):
-    def __init__(self, user, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.user = user
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id != self.user.id:
-            await interaction.response.send_message(
-                "This isn't for you!",
-                ephemeral=True
-            )
-            return False
-        return True
 
 
 class AutoreactDashboard(PrivateLayoutView):
@@ -789,7 +774,7 @@ class AutoReact(commands.Cog):
         self.whitelist_cache.pop(key, None)
 
     @app_commands.command(name="autoreact", description="Manage AutoReact panels via dashboard")
-    @app_commands.check(slash_mod_check)
+    @app_commands.check(mod_check)
     async def autoreact_dashboard_cmd(self, interaction: discord.Interaction):
         view = AutoreactDashboard(interaction.user, self)
         await interaction.response.send_message(view=view)
