@@ -422,18 +422,6 @@ class SkullboardCog(commands.Cog):
             except discord.NotFound:
                 return
 
-            if msg.author.bot:
-                existing = self.get_skull_post(guild.id, msg.id)
-                if existing:
-                    try:
-                        sbc = guild.get_channel(sb_id)
-                        sbm = await sbc.fetch_message(existing)
-                        await sbm.delete()
-                    except:
-                        pass
-                    await self.delete_skull_post(guild.id, msg.id)
-                return
-
             skull_react_source = next((r for r in msg.reactions if str(r.emoji) == self.SKULL_EMOJI), None)
             count_source = skull_react_source.count if skull_react_source else 0
 

@@ -486,17 +486,6 @@ class StarboardCog(commands.Cog):
             except discord.NotFound:
                 return
 
-            if msg.author.bot:
-                existing = self.get_star_post(guild.id, msg.id)
-                if existing:
-                    try:
-                        sbc = guild.get_channel(sb_id)
-                        sbm = await sbc.fetch_message(existing)
-                        await sbm.delete()
-                    except:
-                        pass
-                    await self.delete_star_post(guild.id, msg.id)
-                return
 
             star_react_source = next((r for r in msg.reactions if str(r.emoji) == self.STAR_EMOJI), None)
             count_source = star_react_source.count if star_react_source else 0
