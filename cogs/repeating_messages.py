@@ -585,6 +585,7 @@ class DestructiveConfirmationView(PrivateLayoutView):
     async def update_view(self, interaction: discord.Interaction, title: str, color: discord.Color):
         self.title_text = title
         self.body_text = f"~~{self.body_text}~~"
+        self.color = color
         self.build_layout()
 
         if interaction.response.is_done():
