@@ -64,7 +64,7 @@ class CreateRepeatingMessageModal(Modal):
             "channel_id": self.channel.id,
             "message_content": self.content_input.value,
             "frequency_seconds": frequency_seconds,
-            "next_send_time": current_time + frequency_seconds,
+            "next_send_time": current_time,
             "is_active": 1,
             "started_at": current_time
         }
@@ -89,7 +89,7 @@ class CreateRepeatingMessageModal(Modal):
             f"Successfully created **{data['name']}** in {self.channel.mention}!",
             ephemeral=True
         )
-
+        asyncio.create_task(self.cog.send_repeating_messages())
 
 class EditMessageContentModal(Modal):
     def __init__(self, cog: "RepeatingMessages", guild_id: int, message_id: int, current_content: str, parent_view):
@@ -435,6 +435,8 @@ class EditPage(PrivateLayoutView):
         container.add_item(discord.ui.Separator())
 
         fmt_freq = self.cog.format_frequency(self.panel_data['frequency_seconds'])
+
+
 
         details = (
             f"**State:** {status_text} {status_emoji}\n"
