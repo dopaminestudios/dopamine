@@ -50,6 +50,21 @@ bot = Bot(
     intents=intents
 )
 
+@bot.tree.context_menu(name="Get User ID")
+async def get_user_id(interaction: discord.Interaction, message: discord.Message):
+    author = message.author
+    await interaction.response.send_message(
+        f"{author.id}",
+        ephemeral=True
+    )
+
+@bot.tree.context_menu(name="Get Message ID")
+async def get_message_id(interaction: discord.Interaction, message: discord.Message):
+    await interaction.response.send_message(
+        f"{message.id}",
+        ephemeral=True
+    )
+
 if __name__ == "__main__":
     async def main_async():
         try:
