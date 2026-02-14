@@ -608,8 +608,7 @@ class DestructiveConfirmationView(PrivateLayoutView):
         if self.guild_id in self.cog.message_cache and self.message_id in self.cog.message_cache[self.guild_id]:
             del self.cog.message_cache[self.guild_id][self.message_id]
 
-        view = ManagePage(self.user, self.cog, self.guild_id)
-        await interaction.response.edit_message(view=view)
+        await self.update_view(interaction, "Action Confirmed", discord.Colour.green())
 
     async def on_timeout(self, interaction: discord.Interaction):
         if self.value is None:
