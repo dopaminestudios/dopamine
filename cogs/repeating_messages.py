@@ -436,12 +436,15 @@ class EditPage(PrivateLayoutView):
 
         fmt_freq = self.cog.format_frequency(self.panel_data['frequency_seconds'])
 
-
+        next_send_unix = int(self.panel_data['next_send_time'])
+        timestamp_str = f"<t:{next_send_unix}:F> (<t:{next_send_unix}:R>)" if self.panel_data[
+            'is_active'] else "N/A (Paused)"
 
         details = (
             f"**State:** {status_text} {status_emoji}\n"
             f"**Channel:** <#{self.panel_data['channel_id']}>\n"
             f"**Frequency:** {fmt_freq}\n"
+            f"**Next Send:** {timestamp_str}\n"
             f"**Message Content:**\n```\n{self.panel_data['message_content'][:1500]}\n```"
         )
         container.add_item(discord.ui.TextDisplay(details))
