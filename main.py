@@ -1,13 +1,7 @@
 import os
 import logging
 import asyncio
-import time
-import sys
-import signal
-import asyncio
 import discord
-from discord import CustomActivity
-from discord.ext import commands, tasks
 from config import TOKEN, LOGGING_DEBUG_MODE
 from logging.handlers import RotatingFileHandler
 from dopamineframework import Bot
