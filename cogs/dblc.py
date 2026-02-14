@@ -382,5 +382,20 @@ class Dblc(commands.Cog):
         else:
             await interaction.edit_original_response(content="Not enough data yet! The bot or cog was restarted very recently. Please wait a few minutes.")
 
+    @app_commands.context_menu(name="Get User ID")
+    async def get_user_id(interaction: discord.Interaction, message: discord.Message):
+        author = message.author
+        await interaction.response.send_message(
+            f"{author.id}",
+            ephemeral=True
+        )
+
+    @app_commands.context_menu(name="Get Message ID")
+    async def get_user_id(interaction: discord.Interaction, message: discord.Message):
+        await interaction.response.send_message(
+            f"{message.id}",
+            ephemeral=True
+        )
+
 async def setup(bot):
     await bot.add_cog(Dblc(bot))
