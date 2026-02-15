@@ -1092,7 +1092,7 @@ class Points(commands.Cog):
                 dur_text = format_duration_str(int(duration.total_seconds()))
                 punishment_text = f"{action} for {dur_text}"
             elif action == "warning":
-                punishment_text = f"{action}"
+                punishment_text = f"warned"
             else:
                 punishment_text = f"{action}ed from the server."
         else:
