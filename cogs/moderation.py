@@ -1083,12 +1083,16 @@ class Points(commands.Cog):
         term = "warning" if settings.get("simple_mode", 0) == 1 else "point"
 
         if action:
-            act_text = action
-            if duration:
+            if action == "ban" and not duration:
+                punishment_text = "permanently banned"
+            elif action == "ban" and duration:
                 dur_text = format_duration_str(int(duration.total_seconds()))
-                punishment_text = f"{act_text} for {dur_text}"
+                punishment_text = f"{action}ned for {dur_text}"
+            elif duration:
+                dur_text = format_duration_str(int(duration.total_seconds()))
+                punishment_text = f"{action} for {dur_text}"
             else:
-                punishment_text = f"{act_text}"
+                punishment_text = f"{action}ed"
         else:
             punishment_text = "No punishment (No threshold reached)"
 
