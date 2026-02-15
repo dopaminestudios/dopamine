@@ -1101,7 +1101,7 @@ class Points(commands.Cog):
             color=discord.Color.red()
         )
         embed.set_author(name=f"{member.display_name} ({member.id})", icon_url=member.display_avatar.url)
-        embed.set_footer(text=f"by {interaction.user}")
+        embed.set_footer(text=f"by {interaction.user}", icon_url=interaction.user.display_avatar.url)
 
         await interaction.edit_original_response(embed=embed)
         await self.apply_punishment(interaction, member, new_points, reason)
