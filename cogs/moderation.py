@@ -1084,7 +1084,7 @@ class Points(commands.Cog):
 
         if action:
             if action == "ban" and not duration:
-                punishment_text = "permanently banned"
+                punishment_text = "banned permanently"
             elif action == "ban" and duration:
                 dur_text = format_duration_str(int(duration.total_seconds()))
                 punishment_text = f"{action}ned for {dur_text}"
