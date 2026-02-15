@@ -40,7 +40,9 @@ TDB_PATH = str(BASE_DIR / "databases" / "timezone.db")
 GDB_PATH = str(BASE_DIR / "databases" / "giveaway.db")
 LDB_PATH = str(BASE_DIR / "databases" / "logging.db")
 WDB_PATH = str(BASE_DIR / "databases" / "welcome.db")
+LEDB_PATH = str(BASE_DIR / "databases" / "leave.db")
 WELCOMECARD_PATH = BASE_DIR / "databases" / "welcomecard.png"
+LEAVECARD_PATH = BASE_DIR / "databases" / "welcomecard.png"
 BOLDFONT_PATH = BASE_DIR / "databases" / "Bold.ttf"
 MEDIUMFONT_PATH = BASE_DIR / "databases" / "Medium.ttf"
 
