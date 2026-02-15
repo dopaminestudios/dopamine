@@ -77,15 +77,23 @@ class WelcomeImageModal(discord.ui.Modal, title="Customise Welcome Card"):
         await self.callback_func(interaction, self.img_url.value, self.line1.value, self.line2.value)
 
 
-class ChannelSelectView(discord.ui.View):
-    def __init__(self, callback_func):
-        super().__init__(timeout=30)
+class ChannelSelectView(PrivateLayoutView):
+    def __init__(self, callback_func, user):
+        super().__init__(user, timeout=30)
         self.callback_func = callback_func
+        self.build_layout()
 
-    @discord.ui.select(cls=discord.ui.ChannelSelect, channel_types=[discord.ChannelType.text],
-                       placeholder="Select a channel...", min_values=1, max_values=1)
-    async def select_channel(self, interaction: discord.Interaction, select: discord.ui.ChannelSelect):
-        channel = select.values[0]
+    def build_layout(self):
+        container = discord.ui.Container()
+        self.select = discord.ui.ChannelSelect(placeholder="Select a channel...", min_values=1, max_values=1)
+        self.select.callback = self.select_channel
+        container.add_item(discord.ui.TextDisplay("## Select the channel where you want welcome messages to appear:"))
+        container.add_item(discord.ui.ActionRow(self.select))
+
+        self.add_item(container)
+
+    async def select_channel(self, interaction: discord.Interaction):
+        channel = self.select.values[0]
         await self.callback_func(interaction, channel)
         self.stop()
 
@@ -183,9 +191,8 @@ class CV2Helper(PrivateLayoutView):
         new_state = 0 if is_enabled else 1
 
         if new_state == 1 and not self.data.get("channel_id"):
-            view = ChannelSelectView(self.channel_selected_callback)
-            await interaction.response.send_message("Please select a channel to enable welcome messages.", view=view,
-                                                    ephemeral=True)
+            view = ChannelSelectView(self.channel_selected_callback, interaction.user)
+            await interaction.response.edit_message(view=view)
             return
 
         await self.update_db(is_enabled=new_state)
@@ -195,16 +202,11 @@ class CV2Helper(PrivateLayoutView):
     async def channel_selected_callback(self, interaction: discord.Interaction, channel: discord.TextChannel):
         await self.update_db(channel_id=channel.id, is_enabled=1)
         await self.refresh_state()
-        if interaction.response.is_done():
-            await interaction.edit_original_response(view=None, content=f"Channel updated to {channel.mention}!")
-            await interaction.message.edit(view=self)
-        else:
-            await interaction.response.edit_message(view=self)
+        await interaction.response.edit_message(view=self)
 
     async def channel_button_callback(self, interaction: discord.Interaction):
-        view = ChannelSelectView(self.channel_selected_callback)
-        await interaction.response.send_message("Select the channel where welcome messages should be sent:", view=view,
-                                                ephemeral=True)
+        view = ChannelSelectView(self.channel_selected_callback, interaction.user)
+        await interaction.response.edit_message(view=view)
 
     async def test_button_callback(self, interaction: discord.Interaction):
         channel_id = self.data.get("channel_id")
