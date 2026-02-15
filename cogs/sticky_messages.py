@@ -608,6 +608,7 @@ class StickyMessages(commands.Cog):
             for _ in range(pool_size):
                 conn = await aiosqlite.connect(STICKYDB_PATH)
                 await conn.execute("PRAGMA journal_mode=WAL")
+                await conn.commit()
                 await self.db_pool.put(conn)
 
     @asynccontextmanager
