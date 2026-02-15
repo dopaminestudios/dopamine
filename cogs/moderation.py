@@ -1091,8 +1091,10 @@ class Points(commands.Cog):
             elif duration:
                 dur_text = format_duration_str(int(duration.total_seconds()))
                 punishment_text = f"{action} for {dur_text}"
+            elif action == "warning":
+                punishment_text = f"{action}"
             else:
-                punishment_text = f"{action}ed"
+                punishment_text = f"{action}ed from the server."
         else:
             punishment_text = "No punishment (No threshold reached)"
 
