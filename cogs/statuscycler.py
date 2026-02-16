@@ -21,15 +21,16 @@ class StatusCog(commands.Cog):
 
         return [
             "✨ v3 is here!",
-            f"Watching {guild_count} Servers",
-            "Watching downfall of GiveawayBot",
-            "Offering premium exp without paywalls",
-            f"Watching {user_installs} User-installs",
-            "Enforcing no nickel-&-diming policy",
-            f"Watching {total_members} Members",
-            "Watching downfall of GiveawayBoat",
-            "It's so hard being the best!",
-            "Bullying Sapphire for fun"
+            f"✨ Watching {guild_count} Servers",
+            "✨ Watching downfall of GiveawayBot",
+            "✨ Offering premium exp without paywalls",
+            f"✨ Watching {user_installs} User-installs",
+            "✨ Enforcing no nickel-&-diming policy",
+            "✨ Powered by Dopamine Framework!",
+            f"✨ Watching {total_members} Members",
+            "✨ Watching downfall of GiveawayBoat",
+            "✨ It's so hard being the best!",
+            "✨ Bullying Sapphire for fun"
         ]
 
     @tasks.loop(seconds=30)
