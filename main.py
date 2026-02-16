@@ -39,14 +39,11 @@ intents.message_content = True
 intents.members = True
 intents.reactions = True
 
-activity = discord.Streaming(name="✨ Testing v3.0.0 beta!", url="https://www.twitch.tv/dopaminediscordbot")
 
 bot = Bot(
     command_prefix="!!",
     cogs_path="cogs",
     default_diagnostics=False,
-    activity=activity,
-    status=discord.Status.dnd,
     intents=intents
 )
 
