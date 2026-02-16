@@ -62,8 +62,9 @@ def format_duration_str(seconds: int) -> str:
 
 class ConfirmationView(PrivateLayoutView):
     def __init__(self, user, cog, title_text: str, body_text: str, color: discord.Color = None):
-        super().__init__(user, cog, timeout=30)
+        super().__init__(user, timeout=30)
         self.value = None
+        self.cog = cog
         self.title_text = title_text
         self.body_text = body_text
         self.color = color
@@ -276,7 +277,8 @@ class SettingValueModal(discord.ui.Modal):
 
 class ModerationDashboard(PrivateLayoutView):
     def __init__(self, user, cog):
-        super().__init__(user, cog, timeout=None)
+        super().__init__(user, timeout=None)
+        self.cog = cog
         self.build_layout()
 
     def build_layout(self):
@@ -326,7 +328,8 @@ class ModerationDashboard(PrivateLayoutView):
 
 class SettingsPage(PrivateLayoutView):
     def __init__(self, user, cog):
-        super().__init__(user, cog, timeout=None)
+        super().__init__(user, timeout=None)
+        self.cog = cog
         self.build_layout()
 
     def build_layout(self):
@@ -444,8 +447,9 @@ class SettingsPage(PrivateLayoutView):
 
 class CustomisationPage(PrivateLayoutView):
     def __init__(self, user, cog, page=1, delete_mode=False):
-        super().__init__(user, cog, timeout=None)
+        super().__init__(user, timeout=None)
         self.page = page
+        self.cog = cog
         self.items_per_page = 5
         self.delete_mode = delete_mode
         self.build_layout()
