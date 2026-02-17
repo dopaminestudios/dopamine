@@ -51,7 +51,7 @@ class HelpSelect(PrivateSelect):
                                  description="Essential tools for maintaining server hygiene and diagnosing the bot.", value="Administration",
                                  emoji="⚙️"),
             discord.SelectOption(label="Engagement Tools",
-                                 description="Starboards, LFG posts, automated reactions, Haikus.", value="Engagement1",
+                                 description="Giveaways, Starboards, LFG posts, automated reactions, Haikus.", value="Engagement1",
                                  emoji="✨"),
             discord.SelectOption(label="Automations",
                                  description="Set-and-forget tools for consistent channel messaging and flow control.", value="Automation",
@@ -131,11 +131,11 @@ class HelpCog(commands.Cog):
         moderation_description = (
             "Dopamine replaces traditional mute/kick/ban commands with a **12-point escalation system**. "
             "Moderators assign points, and the bot handles the math and the punishment automatically.\n\n"
-            "**Punishment Logic (Customizable via `/pointvalues`):**\n"
-            "• 1 Point: Warning\n"
-            "• 2-5 Points: Incremental Timeouts (15m to 1h)\n"
-            "• 6-11 Points: Incremental Bans (12h to 7d)\n"
-            "• 12 Points: Permanent Ban\n> The points system is completely customizable, and you can customize point amounts for each action or disable an action comlpetely.\n\n"
+            "**Punishment Logic (Customizable via `/moderation dashboard`):**\n"
+            "• 1 Warning: Official Warning\n"
+            "• 2 Warnings: 60-minute mute/timeout\n"
+            "• 3 Warnings: 12-hour ban\n"
+            "• 4 Warnings: 7-day Ban\n• 5 Warnings: Permanent Ban\n> The points system is completely customizable, and you can customize point amounts for each action or disable an action completely.\n\n"
             
             "**Core Mechanics:**\n"
             "• **Decay:** Points drop by 1 every two weeks (can be customized) if no new infractions occur.\n"
@@ -143,9 +143,9 @@ class HelpCog(commands.Cog):
         )
         page2 = create_base_embed("Automated Moderation", moderation_description)
         page2.add_field(name="Management Commands", value=(
-            "`/point` • Add points & trigger auto-punishment\n"
+            "`/warn` • Add warnings & trigger auto-punishment\n"
             "`/pardon` • Remove points from a user history\n"
-            "`/points` • View current point total and history\n"
+            "`/warnings` • View current warnings total and history\n"
             "`/unban` • Unban a user."
         ), inline=False)
         page2.add_field(name="Nickname Moderator", value=(
@@ -165,23 +165,27 @@ class HelpCog(commands.Cog):
             "**Utility:** Use `/echo` to send messages as the bot."
         ), inline=False)
         page3.add_field(name="Bot Status", value=(
-            "`/latency info` • Real-time performance metrics\n"
-            "`/servercount` • Current global reach"
+            "`/ping` • Real-time performance metrics\n"
+            "`/latency graph` • See a graph of API latency\n"
+            "`/servercount` • Current total server count"
         ), inline=False)
 
         page4 = create_base_embed(
             "Engagement Tools",
             "Features designed to surface the best content, organize player groups, and automated interactions for engagement."
         )
+        page4.add_field(name="Giveaways", value=(
+            "Create completely customizable giveaways. Create, store, and share giveaway templates.\n"
+            "• `/giveaway create` | `/giveaway template`"
+        ), inline=False)
         page4.add_field(name="Starboard & LFG", value=(
             "**Starboard:** Showcase high-quality posts based on ⭐ reactions.\n"
-            "• `/starboard set_channel` | `/starboard threshold`\n\n"
             "**Looking For Group:** Create posts that ping everyone who reacts once a group is full.\n"
-            "• `/lfg create` | `/lfg threshold`"
+            "• `/starboard` | `/lfg create` | `/lfg threshold`"
         ), inline=False)
         page4.add_field(name="Automated Interactions", value=(
             "**AutoReact:** React to new messages (or image-only posts) with up to 3 emojis.\n"
-            "• `/autoreact panel setup` | `/autoreact member whitelist`\n\n"
+            "• `/autoreact`\n\n"
             "**Haiku Detection:** Automatically identifies 5-7-5 syllable patterns.\n"
             "• `/haiku detection enable/disable`"
         ), inline=False)
@@ -191,11 +195,11 @@ class HelpCog(commands.Cog):
             "Automations",
             "Set-and-forget tools for consistent channel messaging and flow control."
         )
-        page5.add_field(name="Scheduled & Sticky Messages", value=(
-            "**Scheduled Messages:** Post recurring announcements (e.g., every 3 days).\n"
-            "• `/scheduledmessage panel setup` | `/scheduledmessage panels`\n\n"
+        page5.add_field(name="Repeating & Sticky Messages", value=(
+            "**Repeating Messages:** Post recurring announcements (e.g., every 3 days).\n"
+            "• `/repeating message`\n\n"
             "**Sticky Messages:** Keep vital info pinned at the very bottom of a channel.\n"
-            "• `/sticky panel setup` | `/sticky panel modes`"
+            "• `/sticky message`"
         ), inline=False)
         page5.add_field(name="Slowmode Scheduler", value=(
             "Automate channel chat speed based on time of day.\n"
@@ -209,9 +213,9 @@ class HelpCog(commands.Cog):
         )
         page6.add_field(name="Tracking & Data", value=(
             "**Member Tracker:** Update a live channel message with server growth stats.\n"
-            "• `/membertracker edit` | `/membertracker info`\n\n"
+            "• `/member tracker edit`\n\n"
             "**Private Notes:** Save private notes that follow you across all servers.\n"
-            "• `/note create` | `/note list` | `/note fetch`"
+            "• `/note create` | `/note list` | `/note get` | `/note edit`"
         ), inline=False)
         page6.add_field(name="Miscellaneous", value=(
             "`/alert` • Read developer updates and changelogs\n"
