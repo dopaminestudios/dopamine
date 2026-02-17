@@ -700,7 +700,7 @@ class Points(commands.Cog):
                     punishment_log INTEGER DEFAULT 1,
                     decay_interval INTEGER DEFAULT 14,
                     rejoin_points INTEGER DEFAULT 4,
-                    simple_mode INTEGER DEFAULT 0
+                    simple_mode INTEGER DEFAULT 1
                 );
             ''')
             await db.commit()
@@ -708,17 +708,10 @@ class Points(commands.Cog):
     async def apply_default_actions(self, guild_id: int):
         default_actions = [
             ("warning", 0, 1),
-            ("timeout", 900, 2),
-            ("timeout", 1800, 3),
-            ("timeout", 2700, 4),
-            ("timeout", 3600, 5),
-            ("ban", 43200, 6),
-            ("ban", 43200, 7),
-            ("ban", 86400, 8),
-            ("ban", 259200, 9),
-            ("ban", 604800, 10),
-            ("ban", 604800, 11),
-            ("ban", 0, 12)
+            ("timeout", 3600, 2),
+            ("ban", 43200, 3),
+            ("ban", 604800, 4),
+            ("ban", 0, 5)
         ]
 
         async with self.acquire_db() as db:
