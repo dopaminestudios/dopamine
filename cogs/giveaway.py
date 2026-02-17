@@ -9,7 +9,7 @@ import asyncio
 import aiosqlite
 from datetime import datetime, timezone
 from discord.ui import TextDisplay
-from dopamineframework import PrivateLayoutView, PrivateView
+from dopamineframework import PrivateLayoutView, PrivateView, mod_check
 
 from config import GDB_PATH
 from utils.time import get_duration_to_seconds, get_now_plus_seconds_unix
@@ -338,7 +338,7 @@ class ParticipantPaginator(discord.ui.View):
         embed.set_footer(text=f"Total Participants: {total_count} | Page {self.current_page + 1} of {total_pages}")
         return embed
 
-    @discord.ui.button(label="◀️", style=discord.ButtonStyle.gray)
+    @discord.ui.button(emoji="◀️", style=discord.ButtonStyle.primary)
     async def prev_page(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.current_page > 0:
             self.current_page -= 1
@@ -349,13 +349,13 @@ class ParticipantPaginator(discord.ui.View):
         total_pages = (len(self.processed_participants) - 1) // self.per_page + 1
         await interaction.response.send_modal(GoToPageModalPaginator(self.current_page, total_pages, self))
 
-    @discord.ui.button(label="▶️", style=discord.ButtonStyle.gray)
+    @discord.ui.button(emoji="▶️", style=discord.ButtonStyle.primary)
     async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
         if (self.current_page + 1) * self.per_page < len(self.processed_participants):
             self.current_page += 1
             await interaction.response.edit_message(embed=self.get_embed(), view=self)
 
-    @discord.ui.button(label="Show User Tags", style=discord.ButtonStyle.blurple)
+    @discord.ui.button(label="Show User Tags", style=discord.ButtonStyle.gray)
     async def toggle_tags(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.show_tags = not self.show_tags
         button.label = "Show Usernames" if self.show_tags else "Show User Tags"
@@ -2123,18 +2123,22 @@ class Giveaways(commands.Cog):
     giveaway = app_commands.Group(name="giveaway", description="Commands for Dopamine's giveaway features.")
 
     @giveaway.command(name="create", description="Start the giveaway creation process.")
+    @app_commands.check(mod_check)
     async def create(self, interaction: discord.Interaction):
         view = CreateChoose(self, interaction.user)
         await interaction.response.send_message(view=view, ephemeral=True)
 
     @giveaway.command(name="template", description="Open the Giveaway Template Homepage.")
+    @app_commands.check(mod_check)
     async def template_cmd(self, interaction: discord.Interaction):
         view = TemplateHomepage(self, interaction.user)
         await interaction.response.send_message(view=view, ephemeral=True)
 
     @app_commands.command(name="zr", description="Set the current channel as the Template Review Channel.")
-    @app_commands.checks.has_permissions(administrator=True)
     async def set_review_channel(self, interaction: discord.Interaction):
+        if not await self.bot.is_owner(interaction.user):
+            await interaction.response.send_message("🤫", ephemeral=True)
+            return
         async with self.acquire_db() as db:
             await db.execute("INSERT OR REPLACE INTO review_config (guild_id, channel_id) VALUES (?, ?)",
                              (interaction.guild.id, interaction.channel.id))
@@ -2143,6 +2147,7 @@ class Giveaways(commands.Cog):
                                                 ephemeral=True)
 
     @giveaway.command(name="end", description="End an active giveaway (winners are also picked and mentioned).")
+    @app_commands.check(mod_check)
     @app_commands.describe(giveaway_id="The ID of the giveaway to end.")
     async def giveaway_end(self, interaction: discord.Interaction, giveaway_id: str):
         try:
@@ -2169,6 +2174,7 @@ class Giveaways(commands.Cog):
         return await self.giveaway_autocomplete(interaction, current, magic=True)
 
     @giveaway.command(name="delete", description="Delete a giveaway permanently from the database.")
+    @app_commands.check(mod_check)
     @app_commands.describe(giveaway_id="The ID of the giveaway to delete.")
     async def giveaway_delete(self, interaction: discord.Interaction, giveaway_id: str):
         try:
@@ -2211,6 +2217,7 @@ class Giveaways(commands.Cog):
         return await self.giveaway_autocomplete(interaction, current, magic=False)
 
     @giveaway.command(name="reroll", description="Reroll a giveaway.")
+    @app_commands.check(mod_check)
     @app_commands.describe(giveaway_id="The ID of the giveaway to reroll.", winners="Number of new winners to pick",
                            preserve_winners="Keep previous winners and just add new ones?")
     async def giveaway_reroll(self, interaction: discord.Interaction, giveaway_id: int, winners: int = 1,
@@ -2338,6 +2345,7 @@ class Giveaways(commands.Cog):
         return await self.giveaway_autocomplete(interaction, current, magic=False)
 
     @giveaway.command(name="list", description="List all giveaways in this server.")
+    @app_commands.check(mod_check)
     async def giveaway_list(self, interaction: discord.Interaction):
         await interaction.response.defer()
         async with self.acquire_db() as db:

@@ -246,7 +246,7 @@ class ManagePage(PrivateLayoutView):
 
             nav_row = discord.ui.ActionRow()
 
-            left_btn = discord.ui.Button(label="◀️", style=discord.ButtonStyle.primary, disabled=(self.page <= 1))
+            left_btn = discord.ui.Button(emoji="◀️", style=discord.ButtonStyle.primary, disabled=(self.page <= 1))
             left_btn.callback = self.prev_page
             nav_row.add_item(left_btn)
 
@@ -255,7 +255,7 @@ class ManagePage(PrivateLayoutView):
             go_btn.callback = self.go_to_page_callback
             nav_row.add_item(go_btn)
 
-            right_btn = discord.ui.Button(label="▶️", style=discord.ButtonStyle.primary,
+            right_btn = discord.ui.Button(emoji="▶️", style=discord.ButtonStyle.primary,
                                           disabled=(self.page >= total_pages))
             right_btn.callback = self.next_page
             nav_row.add_item(right_btn)
