@@ -1,3 +1,5 @@
+from ctypes import pythonapi
+
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -7,7 +9,7 @@ import aiohttp
 import io
 from typing import Optional, Dict, Any
 from contextlib import asynccontextmanager
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+import skia
 from dopamineframework import PrivateLayoutView
 from config import WDB_PATH, WELCOMECARD_PATH, BOLDFONT_PATH, MEDIUMFONT_PATH
 from dopamineframework import mod_check
@@ -487,31 +489,47 @@ class Welcome(commands.Cog):
                     data = dict(zip(columns, row))
                     self.welcome_cache[data["guild_id"]] = data
 
-    async def get_background_image(self, guild_id: int, image_url: Optional[str]) -> Image.Image:
-
+    async def get_background_image(self, guild_id: int, image_url: Optional[str]) -> skia.Image:
         if guild_id in self.image_bytes_cache:
-            return Image.open(io.BytesIO(self.image_bytes_cache[guild_id])).convert("RGBA")
+            return skia.Image.MakeFromEncoded(self.image_bytes_cache[guild_id])
 
+        raw_bytes = None
         if image_url:
             async with aiohttp.ClientSession() as session:
-                img_bytes = await fetch_image(session, image_url)
-                if img_bytes:
-                    try:
-                        with Image.open(io.BytesIO(img_bytes)) as img:
-                            img = img.convert("RGBA")
-                            target_size = (686, 291)
-                            img = ImageOps.fit(img, target_size, method=Image.Resampling.LANCZOS, centering=(0.5, 0.5))
+                raw_bytes = await fetch_image(session, image_url)
 
-                            output = io.BytesIO()
-                            img.save(output, format="PNG")
-                            self.image_bytes_cache[guild_id] = output.getvalue()
+        if raw_bytes:
+            try:
+                full_img = skia.Image.MakeFromEncoded(raw_bytes)
+                if full_img:
+                    surface = skia.Surface(686, 291)
+                    with surface as canvas:
+                        scale_x = 686 / full_img.width()
+                        scale_y = 291 / full_img.height()
+                        scale = max(scale_x, scale_y)
 
-                            return img
-                    except Exception as e:
-                        print(f"Error processing custom image for guild {guild_id}: {e}")
+                        new_w = full_img.width() * scale
+                        new_h = full_img.height() * scale
 
+                        offset_x = (686 - new_w) / 2
+                        offset_y = (291 - new_h) / 2
 
-        return Image.open(WELCOMECARD_PATH).convert("RGBA")
+                        src_rect = skia.Rect.MakeWH(full_img.width(), full_img.height())
+                        dest_rect = skia.Rect.MakeXYWH(offset_x, offset_y, new_w, new_h)
+
+                        canvas.clear(skia.ColorTRANSPARENT)
+
+                        canvas.drawImageRect(full_img, src_rect, dest_rect,
+                                             skia.SamplingOptions(skia.FilterMode.kLinear))
+
+                    final_img = surface.makeImageSnapshot()
+                    data = final_img.encodeToData(skia.EncodedImageFormat.kPNG)
+                    self.image_bytes_cache[guild_id] = data.tobytes()
+                    return final_img
+            except Exception as e:
+                print(f"Error processing Skia image: {e}")
+
+        return skia.Image.MakeFromEncoded(open(WELCOMECARD_PATH, 'rb').read())
 
     async def get_member_count(self, guild: discord.Guild) -> int:
         if guild.id in self.member_count_cache:
@@ -522,11 +540,9 @@ class Welcome(commands.Cog):
         return count
 
     async def generate_welcome_card(self, member: discord.Member, data: dict) -> discord.File:
-
         guild_id = member.guild.id
         image_url = data.get("image_url")
-
-        position = sum(1 for m in member.guild.members if m.joined_at and m.joined_at < member.joined_at) + 1
+        position = await self.get_member_count(member.guild)
         pos_str = get_ordinal(position)
 
         line1_text = (data.get("image_line1") or "Welcome {member.name}").format(
@@ -536,41 +552,52 @@ class Welcome(commands.Cog):
             member=member, server=member.guild, position=pos_str
         )
 
-        background = await self.get_background_image(guild_id, image_url)
+        background_img = await self.get_background_image(guild_id, image_url)
+        surface = skia.Surface(686, 291)
+        canvas = surface.getCanvas()
+        canvas.drawImage(background_img, 0, 0)
 
         avatar_size = 100
-
         async with aiohttp.ClientSession() as session:
             avatar_bytes = await fetch_image(session, member.display_avatar.url)
 
         if avatar_bytes:
-            avatar = Image.open(io.BytesIO(avatar_bytes)).convert("RGBA")
-            avatar = avatar.resize((avatar_size, avatar_size), Image.Resampling.LANCZOS)
+            avatar_img = skia.Image.MakeFromEncoded(avatar_bytes)
+            if avatar_img:
+                avatar_x, avatar_y = 343 - (avatar_size / 2), 102 - (avatar_size / 2)
 
-            mask = Image.new("L", (avatar_size, avatar_size), 0)
-            draw = ImageDraw.Draw(mask)
-            draw.ellipse((0, 0, avatar_size, avatar_size), fill=255)
+                canvas.save()
+                path = skia.Path()
+                path.addCircle(343, 102, avatar_size / 2)
+                canvas.clipPath(path, doAntiAlias=True)
 
-            avatar_pos = (343 - avatar_size // 2, 102 - avatar_size // 2)
+                rect = skia.Rect.MakeXYWH(avatar_x, avatar_y, avatar_size, avatar_size)
+                canvas.drawImageRect(avatar_img, rect, skia.SamplingOptions(skia.FilterMode.kLinear))
+                canvas.restore()
 
-            background.paste(avatar, avatar_pos, mask)
+        paint = skia.Paint(Color=skia.ColorWHITE, AntiAlias=True)
 
-        draw = ImageDraw.Draw(background)
+        def get_skia_font(path, size):
+            try:
+                typeface = skia.Typeface.MakeFromFile(str(path))
+                return skia.Font(typeface, size)
+            except:
+                return skia.Font(skia.Typeface.MakeDefault(), size)
 
-        try:
-            font_big = ImageFont.truetype(BOLDFONT_PATH, 25)
-            font_small = ImageFont.truetype(MEDIUMFONT_PATH, 20)
-        except:
-            font_big = ImageFont.load_default()
-            font_small = ImageFont.load_default()
+        font_big = get_skia_font(BOLDFONT_PATH, 30)
+        font_small = get_skia_font(MEDIUMFONT_PATH, 25)
 
+        def draw_center_text(text, font, y_pos):
+            width = font.measureText(text)
+            canvas.drawSimpleText(text, 343 - (width / 2), y_pos, font, paint)
 
-        draw.text((342, 188), line1_text, font=font_big, fill="white", anchor="mm")
+        draw_center_text(line1_text, font_big, 188 + (25 / 2))
+        draw_center_text(line2_text, font_small, 228 + (20 / 2))
 
-        draw.text((342, 228), line2_text, font=font_small, fill="white", anchor="mm")
+        image = surface.makeImageSnapshot()
+        png_data = image.encodeToData(skia.EncodedImageFormat.kPNG, 100)
 
-        buffer = io.BytesIO()
-        background.save(buffer, format="PNG")
+        buffer = io.BytesIO(png_data.bytes())
         buffer.seek(0)
         return discord.File(buffer, filename="welcome.png")
 
@@ -587,10 +614,8 @@ class Welcome(commands.Cog):
         try:
             if member.guild.id in self.member_count_cache:
                 self.member_count_cache[member.guild.id] += 1
-            else:
-                await self.get_member_count(member.guild)
 
-            current_pos = self.member_count_cache[member.guild.id]
+            current_pos = await self.get_member_count(member.guild)
             pos_str = get_ordinal(current_pos)
 
             msg_content = None

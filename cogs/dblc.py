@@ -1,9 +1,10 @@
+import importlib
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 from dopamineframework import mod_check
 from utils.log import LoggingManager
-from VERSION import bot_version
+import VERSION
 import time
 import psutil
 import asyncio
@@ -17,6 +18,8 @@ from dopamineframework.ext.path import framework_version
 class Dblc(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        importlib.reload(VERSION)
+        self.bot_version = VERSION.bot_version
         self.latency_cache = deque(maxlen=1440)
         self.temp_samples = []
         self.process = psutil.Process(os.getpid())
@@ -29,28 +32,37 @@ class Dblc(commands.Cog):
 
     @tasks.loop(seconds=5.0)
     async def cache_task(self):
-
         if not self.bot.is_ready():
             return
+
         try:
             self.current_cpu = self.process.cpu_percent(interval=None)
+            total_latency = None
+
             try:
                 start = time.perf_counter()
-                await self.bot.http.request(discord.http.Route("GET", "/gateway"))
+                await asyncio.wait_for(
+                    self.bot.http.request(discord.http.Route("GET", "/gateway")),
+                    timeout=3.0
+                )
                 end = time.perf_counter()
                 total_latency = round((end - start) * 1000)
-            except Exception:
-                total_latency = "Error"
+            except asyncio.TimeoutError:
+                total_latency = None
+            except Exception as e:
+                print(f"Latency Request Error: {e}")
+                total_latency = None
 
-            self.temp_samples.append(total_latency)
+            if isinstance(total_latency, (int, float)):
+                self.temp_samples.append(total_latency)
 
             if len(self.temp_samples) >= 12:
                 avg_latency = sum(self.temp_samples) / len(self.temp_samples)
                 self.latency_cache.append(avg_latency)
                 self.temp_samples.clear()
 
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Critical error in cache_task: {e}")
 
     @cache_task.before_loop
     async def before_cache_task(self):
@@ -179,9 +191,7 @@ class Dblc(commands.Cog):
                 )
             return await interaction.edit_original_response(f"An error occurred: {e}", ephemeral=True)
         channel_id = await self.bot.manager.logging_get(interaction.guild.id)
-        log_ch = self.bot.get_channel(channel_id)
-        if not log_ch:
-            log_ch = self.bot.fetch_channel(channel_id)
+        log_ch = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
         if log_ch:
             log_embed = discord.Embed(
                 description=f"**{deleted_count}** message(s) purged in {interaction.channel.mention}.",
@@ -350,7 +360,7 @@ class Dblc(commands.Cog):
         embed = discord.Embed(
             title="Latency Info",
             description=(
-                f"> Bot Version: `{bot_version}`\n"
+                f"> Bot Version: `{self.bot_version}`\n"
                 f"> Powered by Dopamine Framework `v{framework_version}`\n\n"
                 f"> Connected to Discord Gateway: `{gateway_node}`\n"
                 "> Bot Host Location: `South Asia`\n\n"

@@ -362,7 +362,7 @@ class ScheduledSlowmode(commands.Cog):
                     break
 
             try:
-                channel = self.bot.get_channel(channel_id)
+                channel = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
                 if channel and channel.slowmode_delay != target_delay:
                     await channel.edit(slowmode_delay=target_delay)
             except (discord.Forbidden, discord.NotFound):

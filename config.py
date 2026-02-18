@@ -9,7 +9,7 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 TOPGG_TOKEN = os.getenv("TOPGG_TOKEN")
 OVERRIDE_VOTEWALL = os.getenv("OVERRIDE_VOTEWALL", True)
 LOGGING_DEBUG_MODE = os.getenv("LOGGING_DEBUG_MODE", False)
-
+HEARTBEAT_URL = os.getenv("HEARTBEAT_URL", None)
 if not TOKEN:
     raise SystemExit("Set DISCORD_TOKEN in .env")
 
@@ -45,6 +45,8 @@ WELCOMECARD_PATH = BASE_DIR / "databases" / "welcomecard.png"
 LEAVECARD_PATH = BASE_DIR / "databases" / "welcomecard.png"
 BOLDFONT_PATH = BASE_DIR / "databases" / "Bold.ttf"
 MEDIUMFONT_PATH = BASE_DIR / "databases" / "Medium.ttf"
+FDB_PATH = str(BASE_DIR / "databases" / "factorial.db")
+APDB_PATH = str(BASE_DIR / "databases" / "autopublish.db")
 
 # Top.gg settings
 TOPGG_API_URL = "https://top.gg/api/bots/{bot_id}/check"

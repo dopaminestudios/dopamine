@@ -110,7 +110,7 @@ class BatteryMonitor(commands.Cog):
         monitors = await self.db_get_all_monitors()
         choices = []
         for monitor in monitors:
-            channel = self.bot.get_channel(monitor['channel_id'])
+            channel = self.bot.get_channel(monitor['channel_id']) or await self.bot.fetch_channel(monitor['channel_id'])
             if channel:
                 if channel.guild.id == interaction.guild.id:
                     choices.append(app_commands.Choice(name=f"#{channel.name} in {channel.guild.name}", value=str(channel.id)))
@@ -161,7 +161,7 @@ class BatteryMonitor(commands.Cog):
         try:
             channel_id = int(channel)
             await self.db_clear_battery_monitor(channel_id)
-            target_channel = self.bot.get_channel(channel_id)
+            target_channel = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
             await interaction.response.send_message(f"Battery monitor stopped for {target_channel.mention if target_channel else f'channel ID `{channel_id}`'}.", ephemeral=True)
         except ValueError:
             await interaction.response.send_message("Invalid channel selection.", ephemeral=True)
@@ -209,7 +209,7 @@ class BatteryMonitor(commands.Cog):
                 channel_id = monitor["channel_id"]
                 message_id = monitor["message_id"]
 
-                channel = self.bot.get_channel(channel_id)
+                channel = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
                 if not channel:
                     await self.db_clear_battery_monitor(channel_id)
                     continue

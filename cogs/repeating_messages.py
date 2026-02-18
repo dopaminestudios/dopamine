@@ -776,7 +776,7 @@ class RepeatingMessages(commands.Cog):
             for m_id, data in messages.items():
                 if data["is_active"] and now >= data["next_send_time"]:
                     try:
-                        channel = self.bot.get_channel(data["channel_id"])
+                        channel = self.bot.get_channel(data["channel_id"]) or await self.bot.fetch_channel(data["channel_id"])
                         if channel:
                             await channel.send(data["message_content"])
 

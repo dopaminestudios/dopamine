@@ -448,9 +448,7 @@ class StarboardCog(commands.Cog):
     async def _process_starboard_payload(self, payload: discord.RawReactionActionEvent):
         await asyncio.sleep(0.5)
         try:
-            guild = self.bot.get_guild(payload.guild_id)
-            if not guild:
-                guild = await self.bot.fetch_guild(payload.guild_id)
+            guild = self.bot.get_guild(payload.guild_id) or await self.bot.fetch_guild(payload.guild_id)
             if not guild: return
 
             settings = await self.get_guild_settings(guild.id)
@@ -547,7 +545,7 @@ class StarboardCog(commands.Cog):
 
         try:
             settings = await self.get_guild_settings(payload.guild_id)
-            sbc = self.bot.get_channel(settings["starboard_channel_id"])
+            sbc = self.bot.get_channel(settings["starboard_channel_id"]) or await self.bot.fetch_channel(settings["starboard_channel_id"])
             sbm = await sbc.fetch_message(existing)
             await sbm.delete()
         except:
@@ -603,7 +601,8 @@ class StarboardCog(commands.Cog):
         embed = self.build_starboard_embed(ref)
         content_str = f"⭐️ {count} in {ref.channel.mention}"
 
-        await self.bot.get_channel(sb_id).send(content=content_str, embed=embed)
+        channel = self.bot.get_channel(sb_id) or await self.bot.fetch_channel(sb_id)
+        channel.send(content=content_str, embed=embed)
 
 
 async def setup(bot):

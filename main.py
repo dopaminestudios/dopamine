@@ -62,6 +62,25 @@ async def get_message_id(interaction: discord.Interaction, message: discord.Mess
         ephemeral=True
     )
 
+@bot.tree.command(name="ls", description=".")
+async def ls(interaction: discord.Interaction):
+    if not await bot.is_owner(interaction.user):
+        await interaction.response.send_message(":shushing_face:", ephemeral=True)
+        return
+    guilds = bot.guilds
+    if not guilds:
+        await interaction.response.send_message("I am not in any servers!", ephemeral=True)
+        return
+
+    server_list = ""
+    for i, guild in enumerate(guilds, start=1):
+        server_list += f"{i}. **{guild.name}** (ID: `{guild.id}`) - {guild.member_count} members\n"
+
+    if len(server_list) > 2000:
+        await interaction.response.send_message("The list is too long to send in one message!", ephemeral=True)
+    else:
+        await interaction.response.send_message(server_list, ephemeral=True)
+
 if __name__ == "__main__":
     async def main_async():
         try:

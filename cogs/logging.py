@@ -92,9 +92,7 @@ class Logging(commands.Cog):
             color=discord.Color(0x944ae8)
         )
         embed.set_footer(text=f"Set by {interaction.user}", icon_url=interaction.user.display_avatar.url)
-        channel = self.bot.get_channel(channel.id)
-        if not channel:
-            channel = self.bot.fetch_channel(channel.id)
+        channel = self.bot.get_channel(channel.id) or await self.bot.fetch_channel(channel.id)
         if not channel:
             return await interaction.response.send_message("I can't find the channel that you set for logging! Please ensure I have the necessary permissions.", ephemeral=True)
         await channel.send_message(embed=embed)
@@ -115,9 +113,7 @@ class Logging(commands.Cog):
         channel_id = await self.manager.logging_get(interaction.guild.id)
         if not channel_id:
             return await interaction.response.send_message(f"No logging channel is set in **{interaction.guild}**.")
-        channel = self.bot.get_channel(channel_id)
-        if not channel:
-            channel = self.bot.fetch_channel(channel_id)
+        channel = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
         if not channel:
             return await interaction.response.send_message(
                 "I can't find the channel that you set for logging! Please ensure I have the necessary permissions.",
