@@ -153,7 +153,7 @@ class FactorialCog(commands.Cog):
             await message.reply(f"{clean_num}! = {result_str}\n\nAccidentally Factorial! 🤓\n\n-# [What is a factorial?](<https://en.wikipedia.org/wiki/Factorial>)")
 
     @app_commands.command(name="factorial", description="Toggle accidental factorial detection for this server.")
-    @app_commands.checks(mod_check)
+    @app_commands.check(mod_check)
     async def factorial_toggle(self, interaction: discord.Interaction):
         guild_id = interaction.guild_id
         conn = await self.db_pool.acquire()
