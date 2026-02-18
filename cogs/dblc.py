@@ -191,9 +191,7 @@ class Dblc(commands.Cog):
                 )
             return await interaction.edit_original_response(f"An error occurred: {e}", ephemeral=True)
         channel_id = await self.bot.manager.logging_get(interaction.guild.id)
-        log_ch = self.bot.get_channel(channel_id)
-        if not log_ch:
-            log_ch = self.bot.fetch_channel(channel_id)
+        log_ch = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
         if log_ch:
             log_embed = discord.Embed(
                 description=f"**{deleted_count}** message(s) purged in {interaction.channel.mention}.",

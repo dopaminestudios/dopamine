@@ -287,9 +287,7 @@ class Nickname(commands.Cog):
         channel_id = await self.manager.logging_get(member.guild.id)
         if not channel_id:
             return
-        log_ch = self.bot.get_channel(channel_id)
-        if not log_ch:
-            log_ch = self.bot.fetch_channel(channel_id)
+        log_ch = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
         bot_user = member.guild.me
 
         description = (
@@ -315,9 +313,7 @@ class Nickname(commands.Cog):
         channel_id = await self.manager.logging_get(member.guild.id)
         if not channel_id:
             return
-        log_ch = self.bot.get_channel(channel_id)
-        if not log_ch:
-            log_ch = self.bot.fetch_channel(channel_id)
+        log_ch = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
 
         action_text = "Verified" if status else "Unverified"
         footer_text = "verified" if status else "unverified"
@@ -342,9 +338,7 @@ class Nickname(commands.Cog):
         channel_id = await self.manager.logging_get(author.guild.id)
         if not channel_id:
             return
-        log_ch = self.bot.get_channel(channel_id)
-        if not log_ch:
-            log_ch = self.bot.fetch_channel(channel_id)
+        log_ch = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
 
         embed = discord.Embed(
             title="A full server-wide scan for Nickname Moderator has been triggered.",
@@ -364,9 +358,7 @@ class Nickname(commands.Cog):
         channel_id = await self.manager.logging_get(member.guild.id)
         if not channel_id:
             return
-        log_ch = self.bot.get_channel(channel_id)
-        if not log_ch:
-            log_ch = self.bot.fetch_channel(channel_id)
+        log_ch = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
 
         embed = discord.Embed(
             title=f"Profanity Filter for Nickname Moderator has been **{'enabled' if new_state else 'disabled'}**.",
@@ -405,9 +397,7 @@ class Nickname(commands.Cog):
         channel_id = await self.manager.logging_get(member.guild.id)
         if not channel_id:
             return
-        log_ch = self.bot.get_channel(channel_id)
-        if not log_ch:
-            log_ch = self.bot.fetch_channel(channel_id)
+        log_ch = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
 
         embed = discord.Embed(
             title="Nickname Moderator placeholder has been changed",

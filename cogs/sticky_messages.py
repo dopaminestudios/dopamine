@@ -381,7 +381,7 @@ class ChannelSelectView(PrivateLayoutView):
                 content=f"Moved **{self.panel_title}** to {selected_channel.mention}", ephemeral=True)
 
 
-            new_channel = self.cog.bot.get_channel(selected_channel.id)
+            new_channel = self.cog.bot.get_channel(selected_channel.id) or await self.cog.bot.fetch_channel(selected_channel.id)
             if new_channel:
                 await self.cog.update_sticky_message(panel, new_channel)
 
@@ -564,7 +564,7 @@ class StickySetupModal(discord.ui.Modal):
         if self.guild_id not in self.cog.panel_cache: self.cog.panel_cache[self.guild_id] = {}
         self.cog.panel_cache[self.guild_id][title] = data
 
-        channel = self.cog.bot.get_channel(self.channel_id)
+        channel = self.cog.bot.get_channel(self.channel_id) or await self.cog.bot.get_channel(self.channel_id)
         if channel: await self.cog.update_sticky_message(data, channel)
         await interaction.response.send_message(msg, ephemeral=True)
 
@@ -715,7 +715,7 @@ class StickyMessages(commands.Cog):
     async def sticky_monitor(self):
         for c_id, panel in list(self.active_channels.items()):
             if c_id in self.sticky_tasks: continue
-            channel = self.bot.get_channel(c_id)
+            channel = self.bot.get_channel(c_id) or await self.bot.fetch_channel(c_id)
             if channel and channel.last_message_id != panel.get('last_message_id'):
                 await self.update_sticky_message(panel, channel)
 

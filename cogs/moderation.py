@@ -840,12 +840,7 @@ class Points(commands.Cog):
         if hasattr(self, 'manager'):
             channel_id = await self.manager.logging_get(guild.id)
             if channel_id:
-                channel = self.bot.get_channel(channel_id)
-                if not channel:
-                    try:
-                        channel = await self.bot.fetch_channel(channel_id)
-                    except:
-                        return None
+                channel = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
                 return channel
         return None
 

@@ -318,7 +318,7 @@ class ParticipantPaginator(discord.ui.View):
 
         lines = []
         for item in page_list:
-            user = self.bot.get_user(item['id'])
+            user = self.bot.get_user(item['id']) or self.bot.fetch_user(item['id'])
             if user:
                 name = user.name if self.show_tags else f"<@{user.id}>"
             else:
@@ -423,14 +423,11 @@ class GiveawayPreviewView(PrivateView):
             self.stop()
             return
 
-        channel = self.cog.bot.get_channel(self.draft.channel_id)
+        channel = self.cog.bot.get_channel(self.draft.channel_id) or await self.cog.bot.fetch_channel(self.draft.channel_id)
         if not channel:
-            try:
-                channel = await self.cog.bot.fetch_channel(self.draft.channel_id)
-            except (discord.Forbidden, discord.NotFound):
-                return await interaction.followup.send(
-                    "I searched far and wide, but I can't find the channel chosen for the giveaway!\n\nEnsure that I have the necessary permissions.",
-                    ephemeral=True)
+            return await interaction.followup.send(
+                "I searched far and wide, but I can't find the channel chosen for the giveaway!\n\nEnsure that I have the necessary permissions.",
+                ephemeral=True)
 
         giveaway_id = int(discord.utils.utcnow().timestamp()) + random.randint(1, 69)
 
@@ -1749,7 +1746,7 @@ class Giveaways(commands.Cog):
                             pool.append(user_id)
 
         if not pool:
-            channel = self.bot.get_channel(g['channel_id'])
+            channel = self.bot.get_channel(g['channel_id']) or await self.bot.fetch_channel(g['channel_id'])
             if channel:
                 await channel.send(embed=discord.Embed(title="Giveaway Ended",
                                                        description=f"Giveaway for **{g['prize']}** ended with no participants.",
@@ -1936,9 +1933,9 @@ class Giveaways(commands.Cog):
             for row in rows:
                 t = dict(row)
                 if mode == "browse":
-                    creator = self.bot.get_user(t['creator_id'])
+                    creator = self.bot.get_user(t['creator_id']) or await self.bot.fetch_user(t['creator_id'])
                     t['creator_name'] = f"{creator.display_name} ({creator.name})" if creator else "Unknown"
-                    guild = self.bot.get_guild(t['creation_guild_id'])
+                    guild = self.bot.get_guild(t['creation_guild_id']) or await self.bot.fetch_guild(t['guild_id'])
                     t['guild_name'] = guild.name if guild else "Unknown Guild"
                 results.append(t)
             return results
@@ -2050,7 +2047,7 @@ class Giveaways(commands.Cog):
                 if not row: return
                 channel_id = row[0]
 
-        channel = self.bot.get_channel(channel_id)
+        channel = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
         if not channel: return
 
         async with self.acquire_db() as db:
@@ -2075,7 +2072,7 @@ class Giveaways(commands.Cog):
                 row = await cursor.fetchone()
                 if not row: return
                 channel_id = row[0]
-        channel = self.bot.get_channel(channel_id)
+        channel = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
         if channel:
             await channel.send(f"⚠️ **Template Edited:** {t['template_id']} ({t['prize']}) was edited by its creator.")
 
@@ -2087,7 +2084,7 @@ class Giveaways(commands.Cog):
                 await db.execute("UPDATE templates SET is_published = 0 WHERE template_id = ?", (template_id,))
             await db.commit()
 
-        user = self.bot.get_user(creator_id)
+        user = self.bot.get_user(creator_id) or await self.bot.fetch_user(creator_id)
         if user:
             embed = discord.Embed(title=f"Template {status.title()}",
                                   color=discord.Color.green() if approved else discord.Color.red())
@@ -2326,14 +2323,11 @@ class Giveaways(commands.Cog):
 
                 await db.commit()
 
-                channel = self.bot.get_channel(g[2])
+                channel = self.bot.get_channel(g[2]) or await self.bot.fetch_channel(g[2])
                 if not channel:
-                    try:
-                        channel = await self.bot.fetch_channel(g[2])
-                    except (discord.Forbidden, discord.NotFound):
-                        return await interaction.response.followup_send(
-                            "I searched far and wide, but I can't find the channel chosen for the giveaway!\n\nEnsure that I have the necessary permissions so that I can announce the new winners.",
-                            ephemeral=True)
+                    return await interaction.response.followup_send(
+                        "I searched far and wide, but I can't find the channel chosen for the giveaway!\n\nEnsure that I have the necessary permissions so that I can announce the new winners.",
+                        ephemeral=True)
 
                 mention_str = ", ".join([f"<@{w}>" for w in new_picks])
                 mode_text = "added to the pool of winners" if preserve_winners else "selected as the new winners"
