@@ -902,7 +902,7 @@ class EditPage(PrivateLayoutView):
         draft.template_id = self.data['template_id']
 
         embed = self.cog.create_giveaway_embed(draft)
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await interaction.response.send_message(embed=embed, view=view)
 
     async def publish_callback(self, interaction: discord.Interaction):
         if self.data['is_published'] == 1:
