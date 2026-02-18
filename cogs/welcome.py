@@ -588,7 +588,7 @@ class Welcome(commands.Cog):
             if member.guild.id in self.member_count_cache:
                 self.member_count_cache[member.guild.id] += 1
 
-            current_pos = await self.get_member_count(member.guild.id)
+            current_pos = await self.get_member_count(member.guild)
             pos_str = get_ordinal(current_pos)
 
             msg_content = None
