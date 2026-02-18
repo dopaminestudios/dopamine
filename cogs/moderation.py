@@ -780,6 +780,19 @@ class Points(commands.Cog):
                         self.action_cache[guild_id] = []
                     self.action_cache[guild_id].append(action)
 
+    async def guild_setup(self, interaction: discord.Interaction):
+        if interaction.guild.id not in self.settings_cache:
+            async with self.acquire_db() as db:
+                await db.execute("INSERT OR IGNORE INTO settings (guild_id) VALUES (?)", (interaction.guild.id,))
+                await db.commit()
+
+            self.settings_cache[interaction.guild.id] = {
+                "punishment_dm": 1, "punishment_log": 1, "simple_mode": 1,
+                "decay_interval": 14, "rejoin_points": 4
+            }
+            await self.apply_default_actions(interaction.guild.id)
+        return True
+
     async def get_user_data(self, guild_id: int, user_id: int) -> dict:
         key = f"{guild_id}:{user_id}"
         if key not in self.user_cache:
@@ -1018,6 +1031,7 @@ class Points(commands.Cog):
     @mod_group.command(name="dashboard", description="Open the moderation dashboard.")
     @app_commands.check(mod_check)
     async def moderation_dashboard(self, interaction: discord.Interaction):
+        await self.guild_setup(interaction)
         if interaction.guild.id not in self.settings_cache:
             async with self.acquire_db() as db:
                 await db.execute("INSERT OR IGNORE INTO settings (guild_id) VALUES (?)", (interaction.guild.id,))
@@ -1032,6 +1046,7 @@ class Points(commands.Cog):
     @app_commands.describe(delete_messages="Delete the user's messages across all channels (up to 14 days old).")
     async def point(self, interaction: discord.Interaction, member: discord.Member, amount: int,
                     reason: Optional[str] = None, delete_messages: bool = False):
+        await self.guild_setup(interaction)
         settings = self.settings_cache.get(interaction.guild.id, {})
         if settings.get("simple_mode", 0) == 1:
             return await interaction.response.send_message("Simple Mode is enabled. Use `/warn` instead.",
@@ -1044,6 +1059,7 @@ class Points(commands.Cog):
     @app_commands.describe(delete_messages="Delete the user's messages across all channels (up to 14 days old).")
     async def warn(self, interaction: discord.Interaction, member: discord.Member, amount: int = 1, reason: Optional[str] = None,
                    delete_messages: bool = False):
+        await self.guild_setup(interaction)
         settings = self.settings_cache.get(interaction.guild.id, {})
         if settings.get("simple_mode", 0) == 0:
             return await interaction.response.send_message("Simple Mode is disabled. Use `/point` instead.",
@@ -1104,6 +1120,7 @@ class Points(commands.Cog):
     @app_commands.check(mod_check)
     async def pardon(self, interaction: discord.Interaction, member: discord.Member, amount: int,
                      reason: Optional[str] = None):
+        await self.guild_setup(interaction)
         data = await self.get_user_data(interaction.guild.id, member.id)
         old_points = data["points"]
         new_points = max(0, old_points - amount)
@@ -1135,6 +1152,7 @@ class Points(commands.Cog):
     @app_commands.command(name="unban", description="Unban a user.")
     @app_commands.check(mod_check)
     async def unban(self, interaction: discord.Interaction, user: discord.User, reason: Optional[str] = None):
+        await self.guild_setup(interaction)
         try:
             await interaction.guild.unban(user, reason=f"Unbanned by {interaction.user}: {reason}")
 
@@ -1166,7 +1184,8 @@ class Points(commands.Cog):
 
     @app_commands.command(name="points", description="Show points info.")
     @app_commands.check(mod_check)
-    async def points_lookup_slash(self, interaction: discord.Interaction, user: discord.User):
+    async def points_lookup(self, interaction: discord.Interaction, user: discord.User):
+        await self.guild_setup(interaction)
         settings = self.settings_cache.get(interaction.guild.id, {})
         if settings.get("simple_mode", 0) == 1:
             return await interaction.response.send_message("Simple Mode is enabled. Use `/warnings` instead.",
@@ -1176,6 +1195,7 @@ class Points(commands.Cog):
     @app_commands.command(name="warnings", description="Show warnings info.")
     @app_commands.check(mod_check)
     async def warnings_lookup(self, interaction: discord.Interaction, user: discord.User):
+        await self.guild_setup(interaction)
         settings = self.settings_cache.get(interaction.guild.id, {})
         if settings.get("simple_mode", 0) == 0:
             return await interaction.response.send_message("Simple Mode is disabled. Use `/points` instead.",
