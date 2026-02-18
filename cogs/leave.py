@@ -502,16 +502,16 @@ class Leaves(commands.Cog):
 
         return Image.open(LEAVECARD_PATH).convert("RGBA")
 
-    async def generate_leave_card(self, member: discord.Member, data: dict) -> discord.File:
-
-        guild_id = member.guild.id
+    async def generate_leave_card(self, user: discord.User, data: dict, guild: discord.Guild) -> discord.File:
+        guild_id = guild.id
         image_url = data.get("image_url")
 
+        # Use 'user' for naming and 'guild' for server variables
         line1_text = (data.get("image_line1") or "Goodbye {member.name}").format(
-            member=member, server=member.guild
+            member=user, server=guild
         )
         line2_text = (data.get("image_line2") or "We hope to see you again!").format(
-            member=member, server=member.guild
+            member=user, server=guild
         )
 
         background = await self.get_background_image(guild_id, image_url)
@@ -519,9 +519,9 @@ class Leaves(commands.Cog):
         avatar_size = 100
         avatar_bytes = None
 
-        if member.display_avatar:
+        if user.display_avatar:
              async with aiohttp.ClientSession() as session:
-                avatar_bytes = await fetch_image(session, member.display_avatar.url)
+                avatar_bytes = await fetch_image(session, user.display_avatar.url)
 
         if avatar_bytes:
             avatar = Image.open(io.BytesIO(avatar_bytes)).convert("RGBA")
@@ -555,14 +555,22 @@ class Leaves(commands.Cog):
         return discord.File(buffer, filename="leave.png")
 
     @commands.Cog.listener()
-    async def on_member_remove(self, member: discord.Member):
-        data = self.leave_cache.get(member.guild.id)
+    async def on_raw_member_remove(self, payload: discord.RawMemberRemoveEvent):
+        guild_id = payload.guild_id
+        data = self.leave_cache.get(guild_id)
+
         if not data or not data.get("is_enabled") or not data.get("channel_id"):
             return
 
-        channel = member.guild.get_channel(data["channel_id"])
+        guild = self.bot.get_guild(guild_id) or await self.bot.fetch_guild(guild_id)
+        if not guild:
+            return
+
+        channel = guild.get_channel(data["channel_id"]) or await self.bot.fetch_channel(data["channel_id"])
         if not channel:
             return
+
+        user = payload.user
 
         try:
             msg_content = None
@@ -571,12 +579,12 @@ class Leaves(commands.Cog):
             if data.get("show_text", 1):
                 raw_msg = data.get("custom_message") or "Goodbye, {member.name}. We will miss you."
                 msg_content = raw_msg.format(
-                    member=member,
-                    server=member.guild
+                    member=user,
+                    server=guild
                 )
 
             if data.get("show_image", 1):
-                msg_file = await self.generate_leave_card(member, data)
+                msg_file = await self.generate_leave_card(user, data, guild)
 
             if msg_content or msg_file:
                 await channel.send(content=msg_content, file=msg_file)
@@ -584,7 +592,7 @@ class Leaves(commands.Cog):
         except discord.Forbidden:
             pass
         except Exception as e:
-            print(f"Error sending leave message in {member.guild.name}: {e}")
+            print(f"Error sending leave message in {guild.name}: {e}")
 
     @app_commands.command(name="goodbye", description="Open the leave/goodbye feature dashboard.")
     @app_commands.check(mod_check)
