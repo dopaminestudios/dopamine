@@ -46,6 +46,7 @@ LEAVECARD_PATH = BASE_DIR / "databases" / "welcomecard.png"
 BOLDFONT_PATH = BASE_DIR / "databases" / "Bold.ttf"
 MEDIUMFONT_PATH = BASE_DIR / "databases" / "Medium.ttf"
 FDB_PATH = str(BASE_DIR / "databases" / "factorial.db")
+APDB_PATH = str(BASE_DIR / "databases" / "autopublish.db")
 
 # Top.gg settings
 TOPGG_API_URL = "https://top.gg/api/bots/{bot_id}/check"
