@@ -526,7 +526,7 @@ class Welcome(commands.Cog):
         guild_id = member.guild.id
         image_url = data.get("image_url")
 
-        position = sum(1 for m in member.guild.members if m.joined_at and m.joined_at < member.joined_at) + 1
+        position = await self.get_member_count(member.guild)
         pos_str = get_ordinal(position)
 
         line1_text = (data.get("image_line1") or "Welcome {member.name}").format(
@@ -587,10 +587,8 @@ class Welcome(commands.Cog):
         try:
             if member.guild.id in self.member_count_cache:
                 self.member_count_cache[member.guild.id] += 1
-            else:
-                await self.get_member_count(member.guild)
 
-            current_pos = self.member_count_cache[member.guild.id]
+            current_pos = await self.get_member_count(member.guild.id)
             pos_str = get_ordinal(current_pos)
 
             msg_content = None
