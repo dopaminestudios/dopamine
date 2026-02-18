@@ -2,14 +2,14 @@ import discord
 from discord.ext import commands, tasks
 import aiohttp
 import logging
-
+from config import HEARTBEAT_URL
 logger = logging.getLogger('discord')
 
 
 class StatusHeartbeat(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.heartbeat_url = "https://uptime.betterstack.com/api/v1/heartbeat/5yJPwBwua4aR7NUQ1PRKQKMj"
+        self.heartbeat_url = HEARTBEAT_URL
 
         self.send_heartbeat.start()
 

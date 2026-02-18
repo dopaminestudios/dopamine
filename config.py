@@ -9,7 +9,7 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 TOPGG_TOKEN = os.getenv("TOPGG_TOKEN")
 OVERRIDE_VOTEWALL = os.getenv("OVERRIDE_VOTEWALL", True)
 LOGGING_DEBUG_MODE = os.getenv("LOGGING_DEBUG_MODE", False)
-
+HEARTBEAT_URL = os.getenv("HEARTBEAT_URL", None)
 if not TOKEN:
     raise SystemExit("Set DISCORD_TOKEN in .env")
 
