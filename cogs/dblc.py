@@ -1,9 +1,10 @@
+import importlib
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 from dopamineframework import mod_check
 from utils.log import LoggingManager
-from VERSION import bot_version
+import VERSION
 import time
 import psutil
 import asyncio
@@ -17,6 +18,8 @@ from dopamineframework.ext.path import framework_version
 class Dblc(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        importlib.reload(VERSION)
+        self.bot_version = VERSION.bot_version
         self.latency_cache = deque(maxlen=1440)
         self.temp_samples = []
         self.process = psutil.Process(os.getpid())
@@ -359,7 +362,7 @@ class Dblc(commands.Cog):
         embed = discord.Embed(
             title="Latency Info",
             description=(
-                f"> Bot Version: `{bot_version}`\n"
+                f"> Bot Version: `{self.bot_version}`\n"
                 f"> Powered by Dopamine Framework `v{framework_version}`\n\n"
                 f"> Connected to Discord Gateway: `{gateway_node}`\n"
                 "> Bot Host Location: `South Asia`\n\n"
