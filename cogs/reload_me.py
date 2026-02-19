@@ -1,7 +1,7 @@
 import discord
 import importlib
 import config
-import dopamine_framework
+import dopamineframework
 from discord import app_commands
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -20,7 +20,7 @@ class Reload(commands.Cog):
 
         load_dotenv(override=True)
         importlib.reload(config)
-        importlib.reload(dopamine_framework)
+        importlib.reload(dopamineframework)
 
         await interaction.response.send_message("👍️", ephemeral=True)
 
@@ -32,7 +32,7 @@ class Reload(commands.Cog):
 
         load_dotenv(override=True)
         importlib.reload(config)
-        importlib.reload(dopamine_framework)
+        importlib.reload(dopamineframework)
 
         await ctx.send("👍️")
 
