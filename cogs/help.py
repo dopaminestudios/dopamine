@@ -161,13 +161,14 @@ class HelpCog(commands.Cog):
         page3.add_field(name="Configuration", value=(
             "**Logging:** Set your audit channel with `/logging enable`.\n"
             "**Welcoming:** Automated join messages via `/welcome`.\n"
+            "**Goodbyes:** Automated goodbye messages via `/goodbye`.\n"
             "**Maintenance:** Bulk delete messages using `/purge`.\n"
             "**Utility:** Use `/echo` to send messages as the bot."
         ), inline=False)
         page3.add_field(name="Bot Status", value=(
-            "`/ping` • Real-time performance metrics\n"
-            "`/latency graph` • See a graph of API latency\n"
-            "`/servercount` • Current total server count"
+            "`/ping` - Real-time performance metrics\n"
+            "`/latency graph` - See a graph of API latency\n"
+            "`/servercount` - Current total server count"
         ), inline=False)
 
         page4 = create_base_embed(
@@ -189,6 +190,10 @@ class HelpCog(commands.Cog):
             "**Haiku Detection:** Automatically identifies 5-7-5 syllable patterns.\n"
             "• `/haiku detection enable/disable`"
         ), inline=False)
+        page4.add_field(name="Accidentally Factorial", value=(
+            "Detects factorials (any number n followed by exclamation mark `n!`)\n"
+            "• `/factorial`"
+        ), inline=False)
 
 
         page5 = create_base_embed(
@@ -205,6 +210,11 @@ class HelpCog(commands.Cog):
             "Automate channel chat speed based on time of day.\n"
             "• `/slowmode schedule start` • Set active hours\n"
             "• `/slowmode configure` • Manual override"
+        ), inline=False)
+        page5.add_field(name="Autopublish", value=(
+            "Automate publishing of messages in a Discord announcement channel.\n"
+            "• `/autopublish enable` • Enable in a specific channel\n"
+            "• `/autopublish disable` • Disable in a specific channel"
         ), inline=False)
 
         page6 = create_base_embed(
