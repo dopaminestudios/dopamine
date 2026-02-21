@@ -227,6 +227,10 @@ class HelpCog(commands.Cog):
             "**Private Notes:** Save private notes that follow you across all servers.\n"
             "• `/note create` | `/note list` | `/note get` | `/note edit`"
         ), inline=False)
+        page6.add_field(name="Selfpurge", value=(
+            "**Allow users to purge their own messages without mod permissions after a 24-hr buffer period after triggering the command (NOTE: Opt-in. Members can't use this by default. An admin has to enable it first.)**\n"
+            "• `/selfpurge start` | `/selfpurge cancel` | `/selfpurge enable` | `/selfpurge modcancel` | `/selfpurge disable`"
+        ), inline=False)
         page6.add_field(name="Miscellaneous", value=(
             "`/alert` • Read developer updates and changelogs\n"
             "`/temphide` • Send encrypted (ROT13) messages that are hidden until you click a reveal button\n"
