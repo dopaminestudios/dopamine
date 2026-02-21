@@ -564,7 +564,12 @@ class Welcome(commands.Cog):
 
             mask = pyvips.Image.black(avatar_size, avatar_size)
             mask = mask.draw_circle(255, avatar_size // 2, avatar_size // 2, avatar_size // 2, fill=True)
-            avatar = avatar.extract_band(0, n=3).bandjoin(mask)
+
+            original_alpha = avatar.extract_band(avatar.bands - 1)
+
+            final_alpha = (original_alpha / 255) * (mask / 255) * 255
+
+            avatar = avatar.extract_band(0, n=3).bandjoin(final_alpha)
 
             base_img = base_img.composite2(avatar, 'over', x=343 - (avatar_size // 2), y=102 - (avatar_size // 2))
 
