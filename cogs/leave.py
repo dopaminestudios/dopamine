@@ -46,7 +46,7 @@ class LeaveTextModal(discord.ui.Modal, title="Customise Leave Text"):
     def __init__(self, current_msg: str, callback_func):
         super().__init__()
         self.callback_func = callback_func
-        self.message.default = current_msg or "Goodbye, {member.name}. We will miss you."
+        self.message.default = current_msg or "{member.name} has left the server"
 
 
     async def on_submit(self, interaction: discord.Interaction):
@@ -230,7 +230,7 @@ class LeaveDashboardView(PrivateLayoutView):
         content, file = None, None
 
         if self.data.get("show_text", 1):
-            raw_msg = self.data.get("custom_message") or "Goodbye, {member.name}. We will miss you."
+            raw_msg = self.data.get("custom_message") or "{member.name} has left the server"
             content = f"**TEST:** {raw_msg.format(member=bot_member, server=guild)}"
 
         if self.data.get("show_image", 1):
@@ -279,7 +279,7 @@ class LeaveDashboardView(PrivateLayoutView):
             title_text="Reset Leave Settings?",
             body_text="This will delete all custom text, images, and configurations. The feature will remain enabled if it is currently enabled."
         )
-        await interaction.response.send_message(view=view, ephemeral=True)
+        await interaction.response.send_message(view=view)
         await view.wait()
 
         if view.value:
@@ -359,7 +359,7 @@ class LeaveDashboardView(PrivateLayoutView):
                 btn_text_config = discord.ui.Button(label=f"Customise", style=discord.ButtonStyle.primary)
                 btn_text_config.callback = self.open_text_modal
 
-                curr_text = self.data.get("custom_message") or "Goodbye, {member.name}. We will miss you."
+                curr_text = self.data.get("custom_message") or "{member.name} has left the server"
 
                 section = discord.ui.Section(
                     discord.ui.TextDisplay(
@@ -387,7 +387,7 @@ class LeaveDashboardView(PrivateLayoutView):
                 btn_img_config.callback = self.open_image_modal
 
                 curr_l1 = self.data.get("image_line1") or "Goodbye {member.name}"
-                curr_l2 = self.data.get("image_line2") or "We hope to see you again!"
+                curr_l2 = self.data.get("image_line2") or "You will be missed!"
                 using_custom_img = "Yes" if self.data.get("image_url") else "No"
 
                 section = discord.ui.Section(
