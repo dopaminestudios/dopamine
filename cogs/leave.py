@@ -515,15 +515,15 @@ class Leaves(commands.Cog):
             print(f"Error processing Background: {e}")
             return pyvips.Image.new_from_file(LEAVECARD_PATH).thumbnail_image(686, height=291, crop="centre")
 
-    async def generate_leave_card(self, member: discord.Member, data: dict) -> discord.File:
-        guild_id = member.guild.id
+    async def generate_leave_card(self, member: discord.User, data: dict, guild: discord.Guild) -> discord.File:
+        guild_id = guild.id
         image_url = data.get("image_url")
 
         line1_text = (data.get("image_line1") or "Goodbye {member.name}").format(
-            member=member, server=member.guild
+            member=member, server=guild
         )
         line2_text = (data.get("image_line2") or "You will be missed!").format(
-            member=member, server=member.guild
+            member=member, server=guild
         )
 
         base_img = await self.get_background_image(guild_id, image_url)
@@ -589,11 +589,8 @@ class Leaves(commands.Cog):
             msg_file = None
 
             if data.get("show_text", 1):
-                raw_msg = data.get("custom_message") or "Goodbye, {member.name}. We will miss you."
-                msg_content = raw_msg.format(
-                    member=user,
-                    server=guild
-                )
+                raw_msg = data.get("custom_message") or "{member.name} has left the server"
+                msg_content = raw_msg.format(member=user, server=guild)
 
             if data.get("show_image", 1):
                 msg_file = await self.generate_leave_card(user, data, guild)
@@ -601,10 +598,8 @@ class Leaves(commands.Cog):
             if msg_content or msg_file:
                 await channel.send(content=msg_content, file=msg_file)
 
-        except discord.Forbidden:
-            pass
         except Exception as e:
-            print(f"Error sending leave message in {guild.name}: {e}")
+            print(f"Error sending leave message: {e}")
 
     @app_commands.command(name="goodbye", description="Open the leave/goodbye feature dashboard.")
     @app_commands.check(mod_check)
