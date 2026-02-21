@@ -10,7 +10,7 @@ from dopamineframework import PrivateLayoutView
 
 class ConfirmationView(PrivateLayoutView):
     def __init__(self, user, cog, title_text: str, body_text: str):
-        super().__init__(user, timeout=30)
+        super().__init__(user, timeout=120)
         self.value = None
         self.cog = cog
         self.title_text = title_text
@@ -28,7 +28,7 @@ class ConfirmationView(PrivateLayoutView):
 
         if self.value is None:
             action_row = discord.ui.ActionRow()
-            cancel = discord.ui.Button(label="Cancel", style=discord.ButtonStyle.red)
+            cancel = discord.ui.Button(label="Cancel", style=discord.ButtonStyle.grey)
             confirm = discord.ui.Button(label="Confirm", style=discord.ButtonStyle.green)
 
             cancel.callback = self.cancel_callback
@@ -150,20 +150,25 @@ class SelfPurge(commands.Cog):
 
     purge_group = app_commands.Group(name="selfpurge", description="Manage self-message purges.")
 
+    @purge_group.command(name="disable", description="[Mod] Disable self-purges for the server.")
+    @app_commands.default_permissions(manage_messages=True)
+    async def disable(self, interaction: discord.Interaction):
+        guild_id = interaction.guild_id
+
+        if not self.cache_settings[guild_id]:
+            return await interaction.response.send_message("Self purge feature is already disabled!", ephemeral=True)
+        self.cache_settings.pop(guild_id)
+        await self.db.execute("DELETE FROM guild_settings WHERE guild_id = ?", (guild_id,))
+
+        await interaction.response.send_message("Self-purge has been disabled for this server.", ephemeral=True)
+
     @purge_group.command(name="enable", description="[Mod] Enable self-purges for the server.")
     @app_commands.default_permissions(manage_messages=True)
     async def enable(self, interaction: discord.Interaction):
         guild_id = interaction.guild_id
-
-        self.cache_settings[guild_id] = True
-        await self.db.execute("INSERT OR REPLACE INTO guild_settings (guild_id, enabled) VALUES (?, 1)", (guild_id,))
-
-        await interaction.response.send_message("Self-purge has been enabled for this server.\n\nNote: Dopamine is NOT responsible for: Malicious use of this feature, lost evidence, etc.\nBy enabling this feature, you as a moderator/admin/owner take responsibility for any malicious use of this feature. If you don't agree, use `/selfpurge disable`.", ephemeral=True)
-
-    @purge_group.command(name="disable", description="[Mod] Disable self-purges for the server.")
-    @app_commands.default_permissions(manage_messages=True)
-    async def disable(self, interaction: discord.Interaction):
-        view = ConfirmationView(interaction.user, cog=self.bot.cog, title_text="Pending Confirmation", body_text="""**Are you sure you want to enable Self Purge feature?** This allows members without mod permissions to delete their own messages less than 14 days old using `/selfpurge start` that starts a 24-hour buffer period before deleting the messages.\n\nDopamine is NOT responsible for: Malicious use of this feature, lost evidence or messages, harassment, etc.\n\nBy enabling this feature, you agree that you and your staff team are responsible for providing users with the option to bulk delete their own messages by enabling this opt-in feature and clicking the "Confirm" button.""")
+        if self.cache_settings.get(guild_id, False):
+            return await interaction.response.send_message("Self purge feature is already enabled!", ephemeral=True)
+        view = ConfirmationView(interaction.user, cog=self, title_text="Pending Confirmation", body_text="""**Are you sure you want to enable Self Purge feature?** This allows members without mod permissions to delete their own messages less than 14 days old using `/selfpurge start` that starts a 24-hour buffer period before deleting the messages.\n\nDopamine is NOT responsible for: Malicious use of this feature, lost evidence or messages, harassment, etc.\n\nBy enabling this feature, you agree that you and your staff team are responsible for providing users with the option to bulk delete their own messages by enabling this opt-in feature, accepting that you have the control to cancel any user's scheduled deletion using `/selfpurge modcancel`, and clicking the "Confirm" button.""")
         await interaction.response.send_message(view=view)
 
     @purge_group.command(name="start", description="Schedule a purge of your messages to happen in 24 hours.")
