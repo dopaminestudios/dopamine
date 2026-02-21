@@ -234,7 +234,7 @@ class LeaveDashboardView(PrivateLayoutView):
             content = f"**TEST:** {raw_msg.format(member=bot_member, server=guild)}"
 
         if self.data.get("show_image", 1):
-            file = await self.cog.generate_leave_card(bot_member, self.data)
+            file = await self.cog.generate_leave_card(bot_member, self.data, guild)
 
         try:
             await channel.send(content=content, file=file)
