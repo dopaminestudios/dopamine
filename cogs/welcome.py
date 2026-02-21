@@ -12,7 +12,6 @@ from contextlib import asynccontextmanager
 from dopamineframework import PrivateLayoutView
 from config import WDB_PATH, WELCOMECARD_PATH, BOLDFONT_PATH, MEDIUMFONT_PATH
 from dopamineframework import mod_check
-
 import pyvips
 import ctypes
 from pathlib import Path
@@ -575,9 +574,9 @@ class Welcome(commands.Cog):
 
         font_family = "gg sans"
 
-        def draw_centered_text(base, text, size, y_pos, weight="Bold"):
+        def draw_centered_text(base, text, size, y_pos, font_name, weight):
             mask = pyvips.Image.text(
-                f'<span font_family="{font_family}" weight="{weight}" size="{size * 1024}">{text}</span>'
+                f'<span font_family="{font_name}" weight="{weight}" size="{size * 1024}">{text}</span>'
             )
 
             x_pos = (686 - mask.width) // 2
@@ -587,8 +586,9 @@ class Welcome(commands.Cog):
 
             return base.composite2(text_img, 'over', x=x_pos, y=y_pos)
 
-        base_img = draw_centered_text(base_img, line1_text, 30, 178, weight="Bold")
-        base_img = draw_centered_text(base_img, line2_text, 22, 223, weight="Semi-bold")
+        base_img = draw_centered_text(base_img, line1_text, 30, 178, font_name="gg sans", weight="Bold")
+
+        base_img = draw_centered_text(base_img, line2_text, 22, 223, font_name="gg sans Medium", weight="Normal")
 
         png_buffer = base_img.write_to_buffer(".png")
         return discord.File(io.BytesIO(png_buffer), filename="welcome.png")
