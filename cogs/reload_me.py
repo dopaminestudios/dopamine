@@ -13,7 +13,7 @@ class Reload(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="rs", description="Reloads config and dopamine-framework")
+    @app_commands.command(name="rs", description=".")
     async def reload(self, interaction: discord.Interaction):
         if not await self.bot.is_owner(interaction.user):
             await interaction.response.send_message("🤫", ephemeral=True)
@@ -26,7 +26,7 @@ class Reload(commands.Cog):
         await interaction.response.send_message("👍️", ephemeral=True)
 
     @commands.command(name="rs")
-    async def reload_framework(self, ctx: commands.Context):
+    async def reload(self, ctx: commands.Context):
         if not await self.bot.is_owner(ctx.author):
             return
 
@@ -54,7 +54,8 @@ class Reload(commands.Cog):
                     del sys.modules[module]
 
             importlib.import_module('dopamineframework')
-
+            load_dotenv(override=True)
+            importlib.reload(config)
             await ctx.send("👍️")
         except Exception as e:
             await ctx.send(f"Error: {e}")
