@@ -189,7 +189,7 @@ class AutoreactDashboard(PrivateLayoutView):
             return await interaction.response.send_message("Vote required to use this feature.", ephemeral=True)
 
         view = CreateChannelSelect(self.user, self.cog, interaction.guild.id)
-        await interaction.response.send_message(content=None, embed=None, view=view, ephemral=True)
+        await interaction.response.send_message(view=view, ephemeral=True)
 
     async def manage_callback(self, interaction: discord.Interaction):
         view = ManagePage(self.user, self.cog, interaction.guild.id)
