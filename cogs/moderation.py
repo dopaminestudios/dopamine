@@ -275,6 +275,307 @@ class SettingValueModal(discord.ui.Modal):
         await interaction.response.edit_message(view=view)
 
 
+class MessageReportDashboard(PrivateLayoutView):
+    def __init__(self, user, cog):
+        super().__init__(user, timeout=None)
+        self.cog = cog
+        self.build_layout()
+
+    def build_layout(self):
+        self.clear_items()
+
+        guild_id = self.user.guild.id
+        settings = self.cog.settings_cache.get(guild_id, {})
+        enabled = settings.get("msg_report_enabled", 0) == 1
+        channel_id = settings.get("msg_report_channel")
+        roles_raw = settings.get("msg_report_roles")
+
+        channel_str = f"<#{channel_id}>" if channel_id else "Not Set"
+        roles_str = ", ".join([f"<@&{r}>" for r in roles_raw.split(",") if r]) if roles_raw else "Not Set"
+
+        container = discord.ui.Container()
+        container.add_item((discord.ui.TextDisplay("## Message Report Dashboard")))
+
+        toggle_btn = discord.ui.Button(
+            label=f"{'Disable' if enabled else 'Enable'}",
+            style=discord.ButtonStyle.secondary if enabled else discord.ButtonStyle.primary
+        )
+        toggle_btn.callback = self.toggle_reporting
+
+        container.add_item(discord.ui.Section(
+            discord.ui.TextDisplay(
+                "Message reports allow users to report any message directly to the moderators. Use this dashboard to configure it."),
+            accessory=toggle_btn
+        ))
+
+        if enabled:
+            container.add_item(discord.ui.Separator())
+
+            channel_btn = discord.ui.Button(label="Edit Channel", style=discord.ButtonStyle.primary)
+            channel_btn.callback = self.edit_channel
+            container.add_item(discord.ui.Section(
+                discord.ui.TextDisplay(f"* Channel where reported messages will be sent: {channel_str}"),
+                accessory=channel_btn
+            ))
+
+            role_btn = discord.ui.Button(label="Edit Roles", style=discord.ButtonStyle.primary)
+            role_btn.callback = self.edit_roles
+            container.add_item(discord.ui.Section(
+                discord.ui.TextDisplay(f"* Roles that will be pinged upon a report: {roles_str}"),
+                accessory=role_btn
+            ))
+
+            container.add_item(discord.ui.Separator())
+
+            test_btn = discord.ui.Button(label="Send Test Message", style=discord.ButtonStyle.primary)
+            test_btn.callback = self.send_test_message
+            container.add_item(discord.ui.Section(
+                discord.ui.TextDisplay("* Click the button to send a test message to the chosen channel."),
+                accessory=test_btn
+            ))
+
+        container.add_item(discord.ui.Separator())
+        return_btn = discord.ui.Button(label="Return to Dashboard", style=discord.ButtonStyle.secondary)
+        return_btn.callback = self.return_home
+
+        container.add_item(discord.ui.ActionRow(return_btn))
+        self.add_item(container)
+
+    async def toggle_reporting(self, interaction: discord.Interaction):
+        guild_id = interaction.guild.id
+        settings = self.cog.settings_cache.get(guild_id, {})
+        current_state = settings.get("msg_report_enabled", 0) == 1
+        new_state = 0 if current_state else 1
+
+        channel_id = settings.get("msg_report_channel")
+        roles_raw = settings.get("msg_report_roles")
+
+        async with self.cog.acquire_db() as db:
+            await db.execute("UPDATE settings SET msg_report_enabled = ? WHERE guild_id = ?", (new_state, guild_id))
+            await db.commit()
+        self.cog.settings_cache[guild_id]["msg_report_enabled"] = new_state
+
+        if new_state == 1:
+            if not channel_id:
+                return await interaction.response.edit_message(view=ChannelSelect(self.user, self.cog, firsttime=1))
+            elif not roles_raw:
+                return await interaction.response.edit_message(view=RoleSelect(self.user, self.cog, firsttime=1))
+
+        self.build_layout()
+        await interaction.response.edit_message(view=self)
+
+    async def edit_channel(self, interaction: discord.Interaction):
+        await interaction.response.edit_message(view=ChannelSelect(self.user, self.cog))
+
+    async def edit_roles(self, interaction: discord.Interaction):
+        await interaction.response.edit_message(view=RoleSelect(self.user, self.cog))
+
+    async def send_test_message(self, interaction: discord.Interaction):
+        guild_id = interaction.guild.id
+        settings = self.cog.settings_cache.get(guild_id, {})
+        channel_id = settings.get("msg_report_channel")
+
+        if not channel_id:
+            return await interaction.response.send_message("Channel is not set up.", ephemeral=True)
+
+        channel = interaction.guild.get_channel(channel_id)
+        if channel:
+            await channel.send("This is a test message from the Dopamine Message Reporting system.")
+            await interaction.response.send_message("Test message sent!", ephemeral=True)
+        else:
+            await interaction.response.send_message("Could not find the configured channel.", ephemeral=True)
+
+    async def return_home(self, interaction: discord.Interaction):
+        await interaction.response.edit_message(view=ModerationDashboard(self.user, self.cog))
+
+
+class ChannelSelect(PrivateLayoutView):
+    def __init__(self, user, cog, firsttime: int = 0):
+        super().__init__(user, timeout=None)
+        self.cog = cog
+        self.firsttime = firsttime
+        self.build_layout()
+
+    def build_layout(self):
+        self.clear_items()
+        container = discord.ui.Container()
+
+        select = discord.ui.ChannelSelect(
+            placeholder="Select a channel...",
+            min_values=1,
+            max_values=1,
+            channel_types=[discord.ChannelType.text]
+        )
+        select.callback = self.select_channel
+
+        header_text = "## Step 1: Select the channel where you want reports to appear:" if self.firsttime else "## Select the channel where you want reports to appear:"
+        container.add_item(discord.ui.TextDisplay(header_text))
+        container.add_item(discord.ui.ActionRow(select))
+
+        self.add_item(container)
+
+    async def select_channel(self, interaction: discord.Interaction):
+        guild_id = interaction.guild.id
+        channel_id = interaction.data['values'][0]
+
+        async with self.cog.acquire_db() as db:
+            await db.execute("UPDATE settings SET msg_report_channel = ? WHERE guild_id = ?", (channel_id, guild_id))
+            await db.commit()
+
+        self.cog.settings_cache[guild_id]["msg_report_channel"] = int(channel_id)
+
+        if self.firsttime == 1:
+            settings = self.cog.settings_cache.get(guild_id, {})
+            if not settings.get("msg_report_roles"):
+                return await interaction.response.edit_message(view=RoleSelect(self.user, self.cog, firsttime=1))
+
+        await interaction.response.edit_message(view=MessageReportDashboard(self.user, self.cog))
+
+
+class RoleSelect(PrivateLayoutView):
+    def __init__(self, user, cog, firsttime: int = 0):
+        super().__init__(user, timeout=None)
+        self.cog = cog
+        self.firsttime = firsttime
+        self.build_layout()
+
+    def build_layout(self):
+        self.clear_items()
+        container = discord.ui.Container()
+
+        select = discord.ui.RoleSelect(placeholder="Select role(s)...", min_values=1, max_values=25)
+        select.callback = self.select_role
+
+        header_text = "## Step 2: Select the roles that Dopamine should ping when a message is reported:" if self.firsttime else "## Select the roles that Dopamine should ping when a message is reported:"
+        container.add_item(discord.ui.TextDisplay(header_text))
+
+        skip_button = discord.ui.Button(label="Skip (Don't ping anyone / Set it up later)",
+                                        style=discord.ButtonStyle.secondary)
+        skip_button.callback = self.skip_roles
+
+        container.add_item(discord.ui.ActionRow(select))
+        container.add_item(discord.ui.Separator())
+        container.add_item(discord.ui.ActionRow(skip_button))
+
+        self.add_item(container)
+
+    async def select_role(self, interaction: discord.Interaction):
+        guild_id = interaction.guild.id
+        roles = ",".join(interaction.data['values'])
+
+        async with self.cog.acquire_db() as db:
+            await db.execute("UPDATE settings SET msg_report_roles = ? WHERE guild_id = ?", (roles, guild_id))
+            await db.commit()
+
+        self.cog.settings_cache[guild_id]["msg_report_roles"] = roles
+        await interaction.response.edit_message(view=MessageReportDashboard(self.user, self.cog))
+
+    async def skip_roles(self, interaction: discord.Interaction):
+        await interaction.response.edit_message(view=MessageReportDashboard(self.user, self.cog))
+
+
+class ReportActionModal(discord.ui.Modal):
+    def __init__(self, cog, target: discord.Member, is_simple: bool):
+        super().__init__(title=f"Punish {target.name[:35]}")
+        self.cog = cog
+        self.target = target
+
+        term = "Warnings" if is_simple else "Points"
+
+        self.amount = discord.ui.TextInput(
+            label=f"Number of {term} to Add",
+            placeholder="Enter a number...",
+            min_length=1, max_length=4
+        )
+        self.reason = discord.ui.TextInput(
+            label="Reason",
+            style=discord.TextStyle.long,
+            placeholder="Why are they being punished?",
+            required=True
+        )
+
+        self.delete_msgs = discord.ui.TextInput(
+            label="Delete User's Messages <14 days old? (yes/no)",
+            placeholder="Type 'Yes' for Yes or 'No' for No",
+            min_length=1, max_length=3,
+            required=True,
+            default="No"
+        )
+
+        self.add_item(self.amount)
+        self.add_item(self.reason)
+        self.add_item(self.delete_msgs)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            amt = int(self.amount.value)
+        except ValueError:
+            return await interaction.response.send_message("Invalid amount. Must be a number.", ephemeral=True)
+
+        del_msgs = self.delete_msgs.value.lower().startswith('y')
+
+        await self.cog._add_infraction(interaction, self.target, amt, self.reason.value, del_msgs)
+
+
+class ReportActionView(discord.ui.View):
+    def __init__(self, cog):
+        super().__init__(timeout=None)
+        self.cog = cog
+
+    def get_ids_from_footer(self, footer_text: str):
+        try:
+            parts = footer_text.split(" | ")
+            auth_id = int(parts[0].replace("Author: ", ""))
+            rep_id = int(parts[1].replace("Reporter: ", ""))
+            return auth_id, rep_id
+        except (IndexError, ValueError):
+            return None, None
+
+    @discord.ui.button(label="Punish Author", style=discord.ButtonStyle.danger, custom_id="report_warn_author")
+    async def warn_author(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not interaction.user.guild_permissions.moderate_members:
+            return await interaction.response.send_message("You lack permissions.", ephemeral=True)
+
+        auth_id, _ = self.get_ids_from_footer(interaction.message.embeds[0].footer.text)
+        if not auth_id:
+            return await interaction.response.send_message("Could not retrieve user data from this report.",
+                                                           ephemeral=True)
+
+        target = interaction.guild.get_member(auth_id) or await interaction.guild.fetch_member(auth_id)
+
+        settings = self.cog.settings_cache.get(interaction.guild.id, {})
+        is_simple = settings.get("simple_mode", 0) == 1
+
+        await interaction.response.send_modal(ReportActionModal(self.cog, target, is_simple))
+
+    @discord.ui.button(label="Punish Reporter", style=discord.ButtonStyle.danger, custom_id="report_warn_reporter")
+    async def warn_reporter(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not interaction.user.guild_permissions.moderate_members:
+            return await interaction.response.send_message("You lack permissions.", ephemeral=True)
+
+        _, rep_id = self.get_ids_from_footer(interaction.message.embeds[0].footer.text)
+        if not rep_id:
+            return await interaction.response.send_message("Could not retrieve user data from this report.",
+                                                           ephemeral=True)
+
+        target = interaction.guild.get_member(rep_id) or await interaction.guild.fetch_member(rep_id)
+
+        settings = self.cog.settings_cache.get(interaction.guild.id, {})
+        is_simple = settings.get("simple_mode", 0) == 1
+
+        await interaction.response.send_modal(ReportActionModal(self.cog, target, is_simple))
+
+    @discord.ui.button(label="Dismiss", style=discord.ButtonStyle.secondary, custom_id="report_dismiss")
+    async def dismiss_report(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not interaction.user.guild_permissions.moderate_members:
+            return await interaction.response.send_message("You lack permissions.", ephemeral=True)
+
+        for item in self.children:
+            item.disabled = True
+
+        await interaction.response.edit_message(content=f"**Report dismissed by {interaction.user.mention}**",
+                                                view=self)
+
 class ModerationDashboard(PrivateLayoutView):
     def __init__(self, user, cog):
         super().__init__(user, timeout=None)
@@ -308,11 +609,15 @@ class ModerationDashboard(PrivateLayoutView):
         values_btn = discord.ui.Button(label=f"Customise {term} System", style=discord.ButtonStyle.primary)
         values_btn.callback = self.go_to_customisation
 
+        report_btn = discord.ui.Button(label="Message Reporting", style=discord.ButtonStyle.primary)
+        report_btn.callback = self.go_to_message_reports
+
         settings_btn = discord.ui.Button(label="Settings", style=discord.ButtonStyle.secondary)
         settings_btn.callback = self.go_to_settings
 
         row = discord.ui.ActionRow()
         row.add_item(values_btn)
+        row.add_item(report_btn)
         row.add_item(settings_btn)
         container.add_item(row)
         self.add_item(container)
@@ -323,6 +628,10 @@ class ModerationDashboard(PrivateLayoutView):
 
     async def go_to_settings(self, interaction: discord.Interaction):
         view = SettingsPage(self.user, self.cog)
+        await interaction.response.edit_message(view=view)
+
+    async def go_to_message_reports(self, interaction: discord.Interaction):
+        view = MessageReportDashboard(self.user, self.cog)
         await interaction.response.edit_message(view=view)
 
 
@@ -629,11 +938,17 @@ class Points(commands.Cog):
         self.settings_cache: Dict[int, Dict[str, Any]] = {}
 
         self.db_pool: Optional[asyncio.Queue] = None
+        self.ctx_menu = app_commands.ContextMenu(
+            name='Report Message',
+            callback=self.report_message_menu
+        )
+        self.bot.tree.add_command(self.ctx_menu)
 
     async def cog_load(self):
         await self.init_pools()
         await self.init_db()
         await self.populate_caches()
+        self.bot.add_view(ReportActionView(cog=self))
         self.unban_loop.start()
         self.decay_loop.start()
 
@@ -700,29 +1015,24 @@ class Points(commands.Cog):
                     punishment_log INTEGER DEFAULT 1,
                     decay_interval INTEGER DEFAULT 14,
                     rejoin_points INTEGER DEFAULT 4,
-                    simple_mode INTEGER DEFAULT 1
+                    simple_mode INTEGER DEFAULT 1,
+                    msg_report_enabled INTEGER DEFAULT 0,
+                    msg_report_channel INTEGER,
+                    msg_report_roles TEXT
                 );
             ''')
+
+            async with db.execute("PRAGMA table_info(settings)") as cursor:
+                columns = [info[1] for info in await cursor.fetchall()]
+
+            if "msg_report_enabled" not in columns:
+                await db.execute("ALTER TABLE settings ADD COLUMN msg_report_enabled INTEGER DEFAULT 0")
+            if "msg_report_channel" not in columns:
+                await db.execute("ALTER TABLE settings ADD COLUMN msg_report_channel INTEGER")
+            if "msg_report_roles" not in columns:
+                await db.execute("ALTER TABLE settings ADD COLUMN msg_report_roles TEXT")
+
             await db.commit()
-
-    async def apply_default_actions(self, guild_id: int):
-        default_actions = [
-            ("warning", 0, 1),
-            ("timeout", 3600, 2),
-            ("ban", 43200, 3),
-            ("ban", 604800, 4),
-            ("ban", 0, 5)
-        ]
-
-        async with self.acquire_db() as db:
-            async with db.execute("SELECT 1 FROM actions WHERE guild_id = ? LIMIT 1", (guild_id,)) as cursor:
-                if not await cursor.fetchone():
-                    await db.executemany(
-                        "INSERT INTO actions (guild_id, action_type, duration, points) VALUES (?, ?, ?, ?)",
-                        [(guild_id, a, d, p) for a, d, p in default_actions]
-                    )
-                    await db.commit()
-                    await self.refresh_action_cache(guild_id)
 
     async def populate_caches(self):
         self.user_cache.clear()
@@ -752,15 +1062,53 @@ class Points(commands.Cog):
                         self.action_cache[guild_id] = []
                     self.action_cache[guild_id].append(action)
 
-            async with db.execute("SELECT * FROM settings") as cursor:
+            async with db.execute(
+                    "SELECT guild_id, punishment_dm, punishment_log, decay_interval, rejoin_points, simple_mode, msg_report_enabled, msg_report_channel, msg_report_roles FROM settings") as cursor:
                 async for row in cursor:
                     self.settings_cache[row[0]] = {
                         "punishment_dm": row[1],
                         "punishment_log": row[2],
                         "decay_interval": row[3],
                         "rejoin_points": row[4],
-                        "simple_mode": row[5]
+                        "simple_mode": row[5],
+                        "msg_report_enabled": row[6],
+                        "msg_report_channel": row[7],
+                        "msg_report_roles": row[8]
                     }
+
+    async def guild_setup(self, interaction: discord.Interaction):
+        if interaction.guild.id not in self.settings_cache:
+            async with self.acquire_db() as db:
+                await db.execute("INSERT OR IGNORE INTO settings (guild_id) VALUES (?)", (interaction.guild.id,))
+                await db.commit()
+
+            self.settings_cache[interaction.guild.id] = {
+                "punishment_dm": 1, "punishment_log": 1, "simple_mode": 1,
+                "decay_interval": 14, "rejoin_points": 4,
+                "msg_report_enabled": 0, "msg_report_channel": None, "msg_report_roles": None
+            }
+            await self.apply_default_actions(interaction.guild.id)
+        return True
+
+    async def apply_default_actions(self, guild_id: int):
+        default_actions = [
+            ("warning", 0, 1),
+            ("timeout", 3600, 2),
+            ("ban", 43200, 3),
+            ("ban", 604800, 4),
+            ("ban", 0, 5)
+        ]
+
+        async with self.acquire_db() as db:
+            async with db.execute("SELECT 1 FROM actions WHERE guild_id = ? LIMIT 1", (guild_id,)) as cursor:
+                if not await cursor.fetchone():
+                    await db.executemany(
+                        "INSERT INTO actions (guild_id, action_type, duration, points) VALUES (?, ?, ?, ?)",
+                        [(guild_id, a, d, p) for a, d, p in default_actions]
+                    )
+                    await db.commit()
+                    await self.refresh_action_cache(guild_id)
+
 
     async def refresh_action_cache(self, guild_id: int):
         if guild_id in self.action_cache:
@@ -779,19 +1127,6 @@ class Points(commands.Cog):
                     if guild_id not in self.action_cache:
                         self.action_cache[guild_id] = []
                     self.action_cache[guild_id].append(action)
-
-    async def guild_setup(self, interaction: discord.Interaction):
-        if interaction.guild.id not in self.settings_cache:
-            async with self.acquire_db() as db:
-                await db.execute("INSERT OR IGNORE INTO settings (guild_id) VALUES (?)", (interaction.guild.id,))
-                await db.commit()
-
-            self.settings_cache[interaction.guild.id] = {
-                "punishment_dm": 1, "punishment_log": 1, "simple_mode": 1,
-                "decay_interval": 14, "rejoin_points": 4
-            }
-            await self.apply_default_actions(interaction.guild.id)
-        return True
 
     async def get_user_data(self, guild_id: int, user_id: int) -> dict:
         key = f"{guild_id}:{user_id}"
@@ -1113,7 +1448,7 @@ class Points(commands.Cog):
         embed.set_author(name=f"{member.display_name} ({member.id})", icon_url=member.display_avatar.url)
         embed.set_footer(text=f"by {interaction.user}", icon_url=interaction.user.display_avatar.url)
 
-        await interaction.edit_original_response(embed=embed)
+        await interaction.edit_original_response(embed=embed, view=None)
         await self.apply_punishment(interaction, member, new_points, reason)
 
     @app_commands.command(name="pardon", description="Remove points/warnings from a user.")
@@ -1215,6 +1550,50 @@ class Points(commands.Cog):
         embed.set_author(name=f"{user.name} ({user.id})", icon_url=user.display_avatar.url)
         await interaction.response.send_message(embed=embed)
 
+    async def report_message_menu(self, interaction: discord.Interaction, message: discord.Message):
+        await self.guild_setup(interaction)
+        settings = self.settings_cache.get(interaction.guild.id, {})
+
+        if settings.get("msg_report_enabled", 0) == 0:
+            return await interaction.response.send_message("Message reporting is currently disabled in this server.",
+                                                           ephemeral=True)
+
+        channel_id = settings.get("msg_report_channel")
+        if not channel_id:
+            return await interaction.response.send_message(
+                "The message reporting channel has not been fully set up by administrators yet.", ephemeral=True)
+
+        report_channel = interaction.guild.get_channel(channel_id)
+
+        embed = discord.Embed(
+            title="Message Reported",
+            description=f"**Message Content:**\n{message.content or '*No text content*'}",
+            color=discord.Color.orange()
+        )
+        embed.set_author(name=f"{message.author.name} ({message.author.id})",
+                         icon_url=message.author.display_avatar.url)
+        embed.add_field(name="Reported by", value=f"{interaction.user.mention} ({interaction.user.id})", inline=True)
+        embed.add_field(name="Channel", value=message.channel.mention, inline=True)
+        embed.add_field(name="Jump to Message", value=f"[Click Here]({message.jump_url})", inline=False)
+
+        embed.set_footer(text=f"Author: {message.author.id} | Reporter: {interaction.user.id}")
+
+        if message.attachments:
+            embed.add_field(name="Attachments", value="\n".join([a.url for a in message.attachments]), inline=False)
+
+        content = ""
+        roles_raw = settings.get("msg_report_roles")
+        if roles_raw:
+            content = " ".join([f"<@&{r}>" for r in roles_raw.split(",") if r])
+
+        view = ReportActionView(cog=self)
+
+        try:
+            await report_channel.send(content=content, embed=embed, view=view)
+            await interaction.response.send_message("Message reported to moderators successfully! Thank you for keeping the community safe! ❤️", ephemeral=True)
+        except discord.Forbidden:
+            await interaction.response.send_message(
+                "I lack permissions to send messages to the configured reporting channel.", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(Points(bot))

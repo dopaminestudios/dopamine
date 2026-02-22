@@ -250,7 +250,7 @@ class Alerts(commands.Cog):
             try:
                 embed = discord.Embed(
                     title="Unread Alert!",
-                    description="You have an unread alert. Use </alert:1445801945775214715> to read it!",
+                    description="You have an unread alert. Use </alert:1473313910571536541> to read it!",
                     color=0xFFFFFF
                 )
                 await interaction.followup.send(embed=embed, ephemeral=True)

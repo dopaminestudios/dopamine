@@ -70,19 +70,19 @@ class AutoPublish(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        if message.guild is None or message.author.bot:
+        if message.author.id == self.bot.user.id:
             return
 
         if message.channel.id not in self.cache:
             return
 
-        try:
-            if message.channel.is_news():
+        if message.channel.type == discord.ChannelType.news:
+            try:
                 await message.publish()
-        except discord.Forbidden:
-            logger.warning(f"Missing permissions to publish in {message.channel.id}")
-        except discord.HTTPException as e:
-            logger.error(f"Failed to publish message {message.id}: {e}")
+            except discord.Forbidden:
+                logger.error(f"Missing permissions to publish in {message.channel.id}")
+            except discord.HTTPException as e:
+                logger.error(f"Failed to publish message: {e}")
 
     autopublish_group = app_commands.Group(name="autopublish",
                                            description="Manage auto-publishing for announcement channels.")

@@ -2131,7 +2131,7 @@ class Giveaways(commands.Cog):
         view = TemplateHomepage(self, interaction.user)
         await interaction.response.send_message(view=view, ephemeral=True)
 
-    @app_commands.command(name="zr", description="Set the current channel as the Template Review Channel.")
+    @app_commands.command(name="zr", description=".")
     async def set_review_channel(self, interaction: discord.Interaction):
         if not await self.bot.is_owner(interaction.user):
             await interaction.response.send_message("🤫", ephemeral=True)

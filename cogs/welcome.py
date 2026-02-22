@@ -9,11 +9,23 @@ import aiohttp
 import io
 from typing import Optional, Dict, Any
 from contextlib import asynccontextmanager
-import skia
 from dopamineframework import PrivateLayoutView
 from config import WDB_PATH, WELCOMECARD_PATH, BOLDFONT_PATH, MEDIUMFONT_PATH
 from dopamineframework import mod_check
+import pyvips
+import ctypes
+from pathlib import Path
 
+try:
+    fontconfig = ctypes.CDLL("libfontconfig.so.1")
+except OSError:
+    fontconfig = None
+
+
+def register_font(font_path: str):
+    font_path_str = str(font_path)
+    if fontconfig and font_path_str:
+        fontconfig.FcConfigAppFontAddFile(None, font_path_str.encode('utf-8'))
 def get_ordinal(n):
     if 11 <= (n % 100) <= 13:
         suffix = 'th'
@@ -428,6 +440,8 @@ class Welcome(commands.Cog):
         self.image_bytes_cache: Dict[int, bytes] = {}
         self.member_count_cache: Dict[int, int] = {}
         self.db_pool: Optional[asyncio.Queue] = None
+        register_font(BOLDFONT_PATH)
+        register_font(MEDIUMFONT_PATH)
 
     async def cog_load(self):
         await self.init_pools()
@@ -489,47 +503,28 @@ class Welcome(commands.Cog):
                     data = dict(zip(columns, row))
                     self.welcome_cache[data["guild_id"]] = data
 
-    async def get_background_image(self, guild_id: int, image_url: Optional[str]) -> skia.Image:
+    async def get_background_image(self, guild_id: int, image_url: Optional[str]) -> pyvips.Image:
         if guild_id in self.image_bytes_cache:
-            return skia.Image.MakeFromEncoded(self.image_bytes_cache[guild_id])
+            return pyvips.Image.new_from_buffer(self.image_bytes_cache[guild_id], "")
 
-        raw_bytes = None
-        if image_url:
-            async with aiohttp.ClientSession() as session:
-                raw_bytes = await fetch_image(session, image_url)
+        try:
+            raw_bytes = None
+            if image_url:
+                async with aiohttp.ClientSession() as session:
+                    raw_bytes = await fetch_image(session, image_url)
 
-        if raw_bytes:
-            try:
-                full_img = skia.Image.MakeFromEncoded(raw_bytes)
-                if full_img:
-                    surface = skia.Surface(686, 291)
-                    with surface as canvas:
-                        scale_x = 686 / full_img.width()
-                        scale_y = 291 / full_img.height()
-                        scale = max(scale_x, scale_y)
+            if raw_bytes:
+                img = pyvips.Image.new_from_buffer(raw_bytes, "")
+            else:
+                img = pyvips.Image.new_from_file(WELCOMECARD_PATH)
 
-                        new_w = full_img.width() * scale
-                        new_h = full_img.height() * scale
+            img = img.thumbnail_image(686, height=291, crop="centre")
 
-                        offset_x = (686 - new_w) / 2
-                        offset_y = (291 - new_h) / 2
-
-                        src_rect = skia.Rect.MakeWH(full_img.width(), full_img.height())
-                        dest_rect = skia.Rect.MakeXYWH(offset_x, offset_y, new_w, new_h)
-
-                        canvas.clear(skia.ColorTRANSPARENT)
-
-                        canvas.drawImageRect(full_img, src_rect, dest_rect,
-                                             skia.SamplingOptions(skia.FilterMode.kLinear))
-
-                    final_img = surface.makeImageSnapshot()
-                    data = final_img.encodeToData(skia.EncodedImageFormat.kPNG)
-                    self.image_bytes_cache[guild_id] = data.tobytes()
-                    return final_img
-            except Exception as e:
-                print(f"Error processing Skia image: {e}")
-
-        return skia.Image.MakeFromEncoded(open(WELCOMECARD_PATH, 'rb').read())
+            self.image_bytes_cache[guild_id] = img.write_to_buffer(".png")
+            return img
+        except Exception as e:
+            print(f"Error processing Background: {e}")
+            return pyvips.Image.new_from_file(WELCOMECARD_PATH).thumbnail_image(686, height=291, crop="centre")
 
     async def get_member_count(self, guild: discord.Guild) -> int:
         if guild.id in self.member_count_cache:
@@ -552,54 +547,51 @@ class Welcome(commands.Cog):
             member=member, server=member.guild, position=pos_str
         )
 
-        background_img = await self.get_background_image(guild_id, image_url)
-        surface = skia.Surface(686, 291)
-        canvas = surface.getCanvas()
-        canvas.drawImage(background_img, 0, 0)
+        base_img = await self.get_background_image(guild_id, image_url)
+        if not base_img.hasalpha():
+            base_img = base_img.addalpha()
 
         avatar_size = 100
         async with aiohttp.ClientSession() as session:
             avatar_bytes = await fetch_image(session, member.display_avatar.url)
 
         if avatar_bytes:
-            avatar_img = skia.Image.MakeFromEncoded(avatar_bytes)
-            if avatar_img:
-                avatar_x, avatar_y = 343 - (avatar_size / 2), 102 - (avatar_size / 2)
+            avatar = pyvips.Image.new_from_buffer(avatar_bytes, "").thumbnail_image(avatar_size, height=avatar_size,
+                                                                                    crop="centre")
+            if not avatar.hasalpha():
+                avatar = avatar.addalpha()
 
-                canvas.save()
-                path = skia.Path()
-                path.addCircle(343, 102, avatar_size / 2)
-                canvas.clipPath(path, doAntiAlias=True)
+            mask = pyvips.Image.black(avatar_size, avatar_size)
+            mask = mask.draw_circle(255, avatar_size // 2, avatar_size // 2, avatar_size // 2, fill=True)
 
-                rect = skia.Rect.MakeXYWH(avatar_x, avatar_y, avatar_size, avatar_size)
-                canvas.drawImageRect(avatar_img, rect, skia.SamplingOptions(skia.FilterMode.kLinear))
-                canvas.restore()
+            original_alpha = avatar.extract_band(avatar.bands - 1)
 
-        paint = skia.Paint(Color=skia.ColorWHITE, AntiAlias=True)
+            final_alpha = (original_alpha / 255) * (mask / 255) * 255
 
-        def get_skia_font(path, size):
-            try:
-                typeface = skia.Typeface.MakeFromFile(str(path))
-                return skia.Font(typeface, size)
-            except:
-                return skia.Font(skia.Typeface.MakeDefault(), size)
+            avatar = avatar.extract_band(0, n=3).bandjoin(final_alpha)
 
-        font_big = get_skia_font(BOLDFONT_PATH, 30)
-        font_small = get_skia_font(MEDIUMFONT_PATH, 25)
+            base_img = base_img.composite2(avatar, 'over', x=343 - (avatar_size // 2), y=102 - (avatar_size // 2))
 
-        def draw_center_text(text, font, y_pos):
-            width = font.measureText(text)
-            canvas.drawSimpleText(text, 343 - (width / 2), y_pos, font, paint)
+        font_family = "gg sans"
 
-        draw_center_text(line1_text, font_big, 188 + (25 / 2))
-        draw_center_text(line2_text, font_small, 228 + (20 / 2))
+        def draw_centered_text(base, text, size, y_pos, font_name, weight):
+            mask = pyvips.Image.text(
+                f'<span font_family="{font_name}" weight="{weight}" size="{size * 1024}">{text}</span>'
+            )
 
-        image = surface.makeImageSnapshot()
-        png_data = image.encodeToData(skia.EncodedImageFormat.kPNG, 100)
+            x_pos = (686 - mask.width) // 2
 
-        buffer = io.BytesIO(png_data.bytes())
-        buffer.seek(0)
-        return discord.File(buffer, filename="welcome.png")
+            white_text = mask.new_from_image([255, 255, 255]).copy(interpretation="srgb")
+            text_img = white_text.bandjoin(mask)
+
+            return base.composite2(text_img, 'over', x=x_pos, y=y_pos)
+
+        base_img = draw_centered_text(base_img, line1_text, 30, 178, font_name="gg sans", weight="Bold")
+
+        base_img = draw_centered_text(base_img, line2_text, 22, 223, font_name="gg sans Medium", weight="Normal")
+
+        png_buffer = base_img.write_to_buffer(".png")
+        return discord.File(io.BytesIO(png_buffer), filename="welcome.png")
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
@@ -641,12 +633,13 @@ class Welcome(commands.Cog):
             print(f"Error sending welcome in {member.guild.name}: {e}")
 
     @commands.Cog.listener()
-    async def on_member_remove(self, member: discord.Member):
-        if member.guild.id in self.member_count_cache:
-            self.member_count_cache[member.guild.id] -= 1
+    async def on_raw_member_remove(self, payload: discord.RawMemberRemoveEvent):
+        guild_id = payload.guild_id
+        if guild_id in self.member_count_cache:
+            self.member_count_cache[guild_id] -= 1
 
-            if self.member_count_cache[member.guild.id] < 1:
-                self.member_count_cache.pop(member.guild.id)
+            if self.member_count_cache[guild_id] <= 0:
+                self.member_count_cache.pop(guild_id)
 
     @app_commands.command(name="welcome", description="Open the welcome feature dashboard.")
     @app_commands.check(mod_check)
@@ -660,17 +653,18 @@ class Welcome(commands.Cog):
         embed = discord.Embed(
             description=(
                 "### Thank you for inviting me!\n\n"
-                "I'm a point-based moderation and utility bot. The moderation system is inspired by the core functionality of the moderation bot in the **teenserv** Discord server ([**__discord.gg/teenserv__**](https://www.discord.gg/teenserv)).\n\n"
+                "I'm a giveaway, moderation, discord phone and utility bot. I feature giveaway templates, completely customizable moderation, and more.\n\n"
                 "**Use `/help` to get started! ^_^**\n\n"
-                "-# [**__Vote__**](https://top.gg/bot/1411266382380924938/vote) • [**__Support Server__**](https://discord.gg/VWDcymz648)"
+                "-# [**Vote**](https://top.gg/bot/1411266382380924938/vote) • [**Website**](https://dopamine-bot.pages.dev/) • [**Support Server**](https://discord.gg/VWDcymz648) • [**GitHub**](https://github.com/dopaminestudios/dopamine/)"
             ),
-            color=discord.Color.purple()
+            color=discord.Color(0x944ae8)
         )
 
         embed.set_author(
-            name="Dopamine — Advanced point-based Moderation Bot",
+            name="Dopamine — Premium Experience, minus the Paywalls.",
             icon_url=self.bot.user.display_avatar.url
         )
+        embed.set_footer(text="A Dopamine Studios product.")
 
         target_channel = None
         keywords = ["general", "chat", "lounge"]

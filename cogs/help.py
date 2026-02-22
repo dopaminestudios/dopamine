@@ -161,13 +161,14 @@ class HelpCog(commands.Cog):
         page3.add_field(name="Configuration", value=(
             "**Logging:** Set your audit channel with `/logging enable`.\n"
             "**Welcoming:** Automated join messages via `/welcome`.\n"
+            "**Goodbyes:** Automated goodbye messages via `/goodbye`.\n"
             "**Maintenance:** Bulk delete messages using `/purge`.\n"
             "**Utility:** Use `/echo` to send messages as the bot."
         ), inline=False)
         page3.add_field(name="Bot Status", value=(
-            "`/ping` • Real-time performance metrics\n"
-            "`/latency graph` • See a graph of API latency\n"
-            "`/servercount` • Current total server count"
+            "`/ping` - Real-time performance metrics\n"
+            "`/latency graph` - See a graph of API latency\n"
+            "`/servercount` - Current total server count"
         ), inline=False)
 
         page4 = create_base_embed(
@@ -177,6 +178,10 @@ class HelpCog(commands.Cog):
         page4.add_field(name="Giveaways", value=(
             "Create completely customizable giveaways. Create, store, and share giveaway templates.\n"
             "• `/giveaway create` | `/giveaway template`"
+        ), inline=False)
+        page4.add_field(name="Discordphone", value=(
+            "Talk to users in other servers!\n"
+            "• `/discordphone start` | `/discordphone hangup` | `/discordphone report`"
         ), inline=False)
         page4.add_field(name="Starboard & LFG", value=(
             "**Starboard:** Showcase high-quality posts based on ⭐ reactions.\n"
@@ -188,6 +193,10 @@ class HelpCog(commands.Cog):
             "• `/autoreact`\n\n"
             "**Haiku Detection:** Automatically identifies 5-7-5 syllable patterns.\n"
             "• `/haiku detection enable/disable`"
+        ), inline=False)
+        page4.add_field(name="Accidentally Factorial", value=(
+            "Detects factorials (any number n followed by exclamation mark `n!`)\n"
+            "• `/factorial`"
         ), inline=False)
 
 
@@ -206,6 +215,11 @@ class HelpCog(commands.Cog):
             "• `/slowmode schedule start` • Set active hours\n"
             "• `/slowmode configure` • Manual override"
         ), inline=False)
+        page5.add_field(name="Autopublish", value=(
+            "Automate publishing of messages in a Discord announcement channel.\n"
+            "• `/autopublish enable` • Enable in a specific channel\n"
+            "• `/autopublish disable` • Disable in a specific channel"
+        ), inline=False)
 
         page6 = create_base_embed(
             "Member Tools & Misc",
@@ -216,6 +230,10 @@ class HelpCog(commands.Cog):
             "• `/member tracker edit`\n\n"
             "**Private Notes:** Save private notes that follow you across all servers.\n"
             "• `/note create` | `/note list` | `/note get` | `/note edit`"
+        ), inline=False)
+        page6.add_field(name="Selfpurge", value=(
+            "**Allow users to purge their own messages without mod permissions after a 24-hr buffer period after triggering the command (NOTE: Opt-in. Members can't use this by default. An admin has to enable it first.)**\n"
+            "• `/selfpurge start` | `/selfpurge cancel` | `/selfpurge enable` | `/selfpurge modcancel` | `/selfpurge disable`"
         ), inline=False)
         page6.add_field(name="Miscellaneous", value=(
             "`/alert` • Read developer updates and changelogs\n"
