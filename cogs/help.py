@@ -179,6 +179,10 @@ class HelpCog(commands.Cog):
             "Create completely customizable giveaways. Create, store, and share giveaway templates.\n"
             "• `/giveaway create` | `/giveaway template`"
         ), inline=False)
+        page4.add_field(name="Discordphone", value=(
+            "Talk to users in other servers!\n"
+            "• `/discordphone start` | `/discordphone hangup` | `/discordphone report`"
+        ), inline=False)
         page4.add_field(name="Starboard & LFG", value=(
             "**Starboard:** Showcase high-quality posts based on ⭐ reactions.\n"
             "**Looking For Group:** Create posts that ping everyone who reacts once a group is full.\n"
