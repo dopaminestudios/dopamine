@@ -432,5 +432,37 @@ class Dblc(commands.Cog):
 
         await interaction.response.send_message(embed=embed)
 
+    @app_commands.command(name="invite", description="Get the official links for the bot")
+    async def invite(self, interaction: discord.Interaction):
+        embed = discord.Embed(
+            title="Invite Me",
+            description=(
+                "The Premium Experience, minus the Paywalls. "
+                "Invite me today to escape corporate slop.\n\n"
+                "[Invite](https://discord.com/oauth2/authorize?client_id=1411266382380924938) • "
+                "[Website](https://dopamine-bot.pages.dev) • "
+                "[Support](https://discord.gg/yfzDXvk7QU) • "
+                "[Bot Status](https://dopamine.betteruptime.com/)"
+            ),
+            color=discord.Color.from_str("#944ae8")
+        )
+
+        if self.bot.user.avatar:
+            embed.set_image(url=self.bot.user.avatar.url)
+
+
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="vote", description="Get the link to vote for Dopamine on top.gg")
+    async def vote(self, interaction: discord.Interaction):
+        view = discord.ui.View()
+
+        button = discord.ui.Button(label="Vote", style=discord.ButtonStyle.link,
+                                   url="https://top.gg/bot/1411266382380924938/vote")
+
+        view.add_item(button)
+
+        await interaction.response.send_message(content="Vote for Dopamine today by clicking the button below!",
+                                                view=view)
 async def setup(bot):
     await bot.add_cog(Dblc(bot))
