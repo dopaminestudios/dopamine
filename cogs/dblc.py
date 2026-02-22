@@ -14,6 +14,7 @@ from PIL import Image, ImageDraw, ImageFont
 from collections import deque
 from config import BOLDFONT_PATH
 from dopamineframework.ext.path import framework_version
+from typing import Union
 
 class Dblc(commands.Cog):
     def __init__(self, bot):
@@ -374,7 +375,7 @@ class Dblc(commands.Cog):
                 f"> Memory Usage: `{memory_usage}`\n"
                 f"> {battery_status}"
             ),
-            color=discord.Color(0x944ae8)
+                color=discord.Color(0x944ae8)
         )
         message = await interaction.original_response()
         await message.edit(content=None, embed=embed)
@@ -391,6 +392,45 @@ class Dblc(commands.Cog):
             await interaction.edit_original_response(content=None, attachments=[file])
         else:
             await interaction.edit_original_response(content="Not enough data yet! The bot or cog was restarted very recently. Please wait a few minutes.")
+
+
+    @app_commands.command(name="emoji", description="Displays detailed information about a specific emoji")
+    @app_commands.describe(emoji="The emoji you want to inspect (Custom or Unicode)")
+    async def emoji_info(self, interaction: discord.Interaction, emoji: str):
+        ctx = await self.bot.get_context(interaction)
+
+        try:
+            obj = await commands.EmojiConverter().convert(ctx, emoji)
+        except commands.BadArgument:
+            obj = emoji
+
+        embed = discord.Embed(
+            title="Emoji Information",
+            color=discord.Color.from_str("#944ae8")
+        )
+
+        if isinstance(obj, discord.Emoji):
+            embed.set_thumbnail(url=obj.url)
+
+            embed.add_field(name="Name", value=f"`{obj.name}`", inline=True)
+            embed.add_field(name="ID", value=f"`{obj.id}`", inline=True)
+            embed.add_field(name="Type", value="Animated" if obj.animated else "Static", inline=True)
+
+            created_at = discord.utils.format_dt(obj.created_at, style='D')
+            embed.add_field(name="Created On", value=created_at, inline=True)
+
+            if obj.guild:
+                embed.add_field(name="Source Server", value=obj.guild.name, inline=True)
+
+            embed.add_field(name="Links", value=f"[Direct Image URL]({obj.url})", inline=False)
+
+        else:
+            embed.description = f"### Visual Preview: {obj}"
+            embed.add_field(name="Type", value="Standard Unicode", inline=True)
+            embed.add_field(name="Raw/Identity", value=f"`{obj}`", inline=True)
+            embed.set_footer(text="Unicode emojis do not have unique IDs or URLs.")
+
+        await interaction.response.send_message(embed=embed)
 
 async def setup(bot):
     await bot.add_cog(Dblc(bot))
