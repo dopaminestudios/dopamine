@@ -4,9 +4,10 @@ from discord import app_commands
 from discord.ui import Modal, TextInput
 import aiosqlite
 import asyncio
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 from contextlib import asynccontextmanager
 from config import NOTEDB_PATH
+from dopamineframework import ViewPaginator
 
 note_group = app_commands.Group(name="note", description="Note management commands")
 
@@ -155,7 +156,7 @@ class Notes(commands.Cog):
 
                 embed = discord.Embed(
                     title="Note Updated Successfully",
-                    description=f"New Note Title: **{new_name}**\n\nNew Note Content: **{new_content}**",
+                    description=f"**New Note Title:** {new_name}\n\n**New Note Content:** {new_content}",
                     color=discord.Color(0x944ae8)
                 )
                 await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -311,17 +312,34 @@ async def note_list(interaction: discord.Interaction):
     if not await cog.check_vote_access(interaction.user.id):
         return await interaction.response.send_message("Please vote to use this feature.", ephemeral=True)
 
-    user_notes = cog.notes_cache.get(interaction.user.id, {})
+    user_notes = sorted(cog.notes_cache.get(interaction.user.id, {}).keys())
 
-    embed = discord.Embed(title="Your Notes", color=discord.Color.blurple())
-    embed.set_footer(text="To fetch a note, use /note fetch")
+    if not user_notes:
+        embed = discord.Embed(
+            title="Your Notes",
+            description="No notes found. Use `/note create` to create one!",
+            color=discord.Color.blurple()
+        )
+        return await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    if user_notes:
-        embed.description = "\n".join(f"- {name}" for name in sorted(user_notes.keys()))
-    else:
-        embed.description = "No notes found. Use `/note create` to create one!"
+    view = ViewPaginator(data=user_notes, per_page=10)
 
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+    def get_page_embed():
+        current_notes = view.get_current_page_data()
+        embed = discord.Embed(
+            title="Your Notes",
+            description="\n".join(f"- {name}" for name in current_notes),
+            color=discord.Color.blurple()
+        )
+        embed.set_footer(text=f"Page {view.page}/{view.total_pages} • Use /note fetch to retrieve")
+        return embed
+
+    async def custom_update_view(interaction: discord.Interaction):
+        await interaction.response.edit_message(embed=get_page_embed(), view=view)
+
+    view.update_view = custom_update_view
+
+    await interaction.response.send_message(embed=get_page_embed(), view=view, ephemeral=True)
 
 
 @note_group.command(name="delete", description="Delete a note by name")
