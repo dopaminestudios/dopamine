@@ -633,12 +633,13 @@ class Welcome(commands.Cog):
             print(f"Error sending welcome in {member.guild.name}: {e}")
 
     @commands.Cog.listener()
-    async def on_member_remove(self, member: discord.Member):
-        if member.guild.id in self.member_count_cache:
-            self.member_count_cache[member.guild.id] -= 1
+    async def on_raw_member_remove(self, payload: discord.RawMemberRemoveEvent):
+        guild_id = payload.guild_id
+        if guild_id in self.member_count_cache:
+            self.member_count_cache[guild_id] -= 1
 
-            if self.member_count_cache[member.guild.id] < 1:
-                self.member_count_cache.pop(member.guild.id)
+            if self.member_count_cache[guild_id] <= 0:
+                self.member_count_cache.pop(guild_id)
 
     @app_commands.command(name="welcome", description="Open the welcome feature dashboard.")
     @app_commands.check(mod_check)
@@ -652,17 +653,18 @@ class Welcome(commands.Cog):
         embed = discord.Embed(
             description=(
                 "### Thank you for inviting me!\n\n"
-                "I'm a point-based moderation and utility bot. The moderation system is inspired by the core functionality of the moderation bot in the **teenserv** Discord server ([**__discord.gg/teenserv__**](https://www.discord.gg/teenserv)).\n\n"
+                "I'm a giveaway, moderation, discord phone and utility bot. I feature giveaway templates, completely customizable moderation, and more.\n\n"
                 "**Use `/help` to get started! ^_^**\n\n"
-                "-# [**__Vote__**](https://top.gg/bot/1411266382380924938/vote) • [**__Support Server__**](https://discord.gg/VWDcymz648)"
+                "-# [**Vote**](https://top.gg/bot/1411266382380924938/vote) • [**Website**](https://dopamine-bot.pages.dev/) • [**Support Server**](https://discord.gg/VWDcymz648) • [**GitHub**](https://github.com/dopaminestudios/dopamine/)"
             ),
-            color=discord.Color.purple()
+            color=discord.Color(0x944ae8)
         )
 
         embed.set_author(
-            name="Dopamine — Advanced point-based Moderation Bot",
+            name="Dopamine — Premium Experience, minus the Paywalls.",
             icon_url=self.bot.user.display_avatar.url
         )
+        embed.set_footer(text="A Dopamine Studios product.")
 
         target_channel = None
         keywords = ["general", "chat", "lounge"]
