@@ -464,5 +464,55 @@ class Dblc(commands.Cog):
 
         await interaction.response.send_message(content="Vote for Dopamine today by clicking the button below!",
                                                 view=view)
+
+    async def guild_autocomplete(self, interaction: discord.Interaction, current: str):
+        guilds = []
+        for guild in self.bot.guilds:
+            member = guild.get_member(interaction.user.id)
+            if member and member.guild_permissions.manage_expressions:
+                if current.lower() in guild.name.lower():
+                    guilds.append(app_commands.Choice(name=guild.name, value=str(guild.id)))
+
+        return guilds[:25]
+
+    @app_commands.command(name="importemoji", description="Import all emojis from another server you manage.")
+    @app_commands.describe(source_guild_id="The server to copy emojis from")
+    @app_commands.autocomplete(source_guild_id=guild_autocomplete)
+    @app_commands.checks.has_permissions(manage_expressions=True)
+    async def import_emoji(self, interaction: discord.Interaction, source_guild_id: str):
+        await interaction.response.defer(thinking=True)
+
+        source_guild = self.bot.get_guild(int(source_guild_id))
+        dest_guild = interaction.guild
+
+        if not source_guild:
+            return await interaction.followup.send("Could not find the source server.")
+
+        if not interaction.user.guild_permissions.manage_expressions:
+            return await interaction.followup.send("You need 'Manage Emojis/Expressions' permissions here.")
+
+        emojis_to_copy = source_guild.emojis[:100]
+        count = 0
+
+        for emoji in emojis_to_copy:
+            name = emoji.name
+
+            existing_names = [e.name for e in dest_guild.emojis]
+            if name in existing_names:
+                suffix = 1
+                base_name = name
+                while f"{base_name}{suffix}" in existing_names:
+                    suffix += 1
+                name = f"{base_name}{suffix}"
+
+            try:
+                emoji_bytes = await emoji.read()
+                await dest_guild.create_custom_emoji(name=name, image=emoji_bytes)
+                count += 1
+            except discord.HTTPException as e:
+                await interaction.followup.send(f"Stopped at {count} emojis due to an error: {e}")
+                return
+
+        await interaction.followup.send(f"Successfully imported {count} emojis from **{source_guild.name}**!")
 async def setup(bot):
     await bot.add_cog(Dblc(bot))
