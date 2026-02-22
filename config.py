@@ -48,6 +48,8 @@ MEDIUMFONT_PATH = BASE_DIR / "databases" / "Medium.ttf"
 FDB_PATH = str(BASE_DIR / "databases" / "factorial.db")
 APDB_PATH = str(BASE_DIR / "databases" / "autopublish.db")
 SPDB_PATH = str(BASE_DIR / "databases" / "selfpurge.db")
+BAN_PATH = str(BASE_DIR / "databases" / "ban.db")
+DP_PATH = str(BASE_DIR / "databases" / "discordphone.db")
 
 # Top.gg settings
 TOPGG_API_URL = "https://top.gg/api/bots/{bot_id}/check"
