@@ -943,6 +943,7 @@ class Points(commands.Cog):
             callback=self.report_message_menu
         )
         self.bot.tree.add_command(self.ctx_menu)
+        self.manager = LoggingManager()
 
     async def cog_load(self):
         await self.init_pools()
@@ -1185,11 +1186,10 @@ class Points(commands.Cog):
         return "warning", None
 
     async def get_log_channel(self, guild: discord.Guild):
-        if hasattr(self, 'manager'):
-            channel_id = await self.manager.logging_get(guild.id)
-            if channel_id:
-                channel = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
-                return channel
+        channel_id = await self.manager.log_get(guild.id)
+        if channel_id:
+            channel = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
+            return channel
         return None
 
     async def apply_punishment(self, interaction: discord.Interaction, member: discord.Member, amount: int,
@@ -1477,7 +1477,7 @@ class Points(commands.Cog):
             if log_ch:
                 log_embed = discord.Embed(
                     description=(f"## {term} Updated\n\n{term} removed: **{amount}**\n\n"
-                                 f"Old {term}**:{old_points}**\nNew {term}**:{new_points}**\n\n**Reason**: {reason}"),
+                                 f"Old {term}**: {old_points}**\nNew {term}**: {new_points}**\n\n**Reason**: {reason}"),
                     color=discord.Color(0x944ae8)
                 )
                 log_embed.set_author(name=f"{member.name} ({member.id})", icon_url=member.display_avatar.url)

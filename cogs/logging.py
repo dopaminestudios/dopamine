@@ -83,7 +83,7 @@ class Logging(commands.Cog):
     @app_commands.check(mod_check)
     @app_commands.describe(channel="Channel to use for logs")
     async def setlog(self, interaction: discord.Interaction, channel: discord.TextChannel):
-        already = await self.manager.logging_get(interaction.guild.id)
+        already = await self.manager.log_get(interaction.guild.id)
         await self.manager.log_set(interaction.guild.id, channel.id)
 
         embed = discord.Embed(
@@ -95,7 +95,7 @@ class Logging(commands.Cog):
         channel = self.bot.get_channel(channel.id) or await self.bot.fetch_channel(channel.id)
         if not channel:
             return await interaction.response.send_message("I can't find the channel that you set for logging! Please ensure I have the necessary permissions.", ephemeral=True)
-        await channel.send_message(embed=embed)
+        await channel.send(embed=embed)
         await interaction.response.send_message(embed=discord.Embed(
             title=f"{"Logging has been enabled" if already else "Logging Channel Updated"}",
             description=f"Log channel set to {channel.mention}",
@@ -118,10 +118,11 @@ class Logging(commands.Cog):
             return await interaction.response.send_message(
                 "I can't find the channel that you set for logging! Please ensure I have the necessary permissions.",
                 ephemeral=True)
-        embed = discord.Embed(title="Test",
-                              description=f"Beep, boop! This is a test message to test whether logging works or not.",
+        embed = discord.Embed(title="Beep, boop!",
+                              description=f"This is a test message to test whether logging works or not.",
                               color=discord.Colour.blue())
-        await channel.send_message(embed=embed, ephemeral=True)
+        await channel.send(embed=embed)
+        await interaction.response.send_message("Test message has been sent successfully!", ephemeral=True)
 
     @log.command(name="disable", description="Disable logging and delete logging channel for this server from database.")
     @app_commands.check(mod_check)
