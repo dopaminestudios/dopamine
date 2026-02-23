@@ -322,7 +322,7 @@ class DiscordPhone(commands.Cog):
             return await interaction.response.send_message("This channel is already in the matchmaking queue!",
                                                            ephemeral=True)
 
-        await interaction.response.send_message("<a:loading:1475121732108025929> Putting you in the queue...", ephemeral=False)
+        await interaction.response.send_message("<a:loading:1475121732108025929> You have successfully joined the queue! Waiting for another user...", ephemeral=False)
 
         log_chan_id = self.settings_cache.get("log_channel")
         log_channel = self.bot.get_channel(log_chan_id) if log_chan_id else None
@@ -346,8 +346,8 @@ class DiscordPhone(commands.Cog):
             self.active_calls[chan_b.id] = call
             call.timeout_task = self.bot.loop.create_task(self.timeout_handler(call))
 
-            rules_str = "[Rules](https://example.com/rules.pdf)"
-            safe_msg = f"Connected! Please stay safe, and remember you can report problematic messages via right-clicking the message -> Apps -> 'Report Message' or using `/discordphone report`. By continuing, you agree to the {rules_str}. If you don't agree, stop using the bot."
+            rules_str = "[DiscordPhone Rules](https://docs.google.com/document/d/1ZuoKDQCrLMcY72PLW9kzTM7a1sS0y6mzyF_eNwV3low/edit?tab=t.0)"
+            safe_msg = f"Connected! Please stay safe, and remember you can report problematic messages via right-clicking the message -> Apps -> 'Report Message' or using `/discordphone report`. By continuing, you agree to the {rules_str}. If you don't agree, stop using the bot.\n\n-# Dopamine - a Dopamine Studios product. Providing the premium experience without the paywalls. Invite by clicking [here](<https://top.gg/bot/1411266382380924938/invite>)."
 
             await chan_a.send(f"{user_a.mention} {safe_msg}")
             await chan_b.send(f"{user_b.mention} {safe_msg}")

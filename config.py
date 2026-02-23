@@ -12,6 +12,7 @@ LOGGING_DEBUG_MODE = os.getenv("LOGGING_DEBUG_MODE", False)
 HEARTBEAT_URL = os.getenv("HEARTBEAT_URL", None)
 if not TOKEN:
     raise SystemExit("Set DISCORD_TOKEN in .env")
+DBL_TOKEN = os.getenv("DBL_TOKEN")
 
 # Base directory
 BASE_DIR = Path(__file__).resolve().parent
@@ -36,7 +37,6 @@ FONT_PATH = BASE_DIR / "databases" / "max.ttf"
 BDB_PATH = str(BASE_DIR / "databases" / "battery.db")
 SSDB_PATH = str(BASE_DIR / "databases" / "slowmode.db")
 NFDB_PATH = str(BASE_DIR / "databases" / "nickname.db")
-TDB_PATH = str(BASE_DIR / "databases" / "timezone.db")
 GDB_PATH = str(BASE_DIR / "databases" / "giveaway.db")
 LDB_PATH = str(BASE_DIR / "databases" / "logging.db")
 WDB_PATH = str(BASE_DIR / "databases" / "welcome.db")
@@ -50,6 +50,8 @@ APDB_PATH = str(BASE_DIR / "databases" / "autopublish.db")
 SPDB_PATH = str(BASE_DIR / "databases" / "selfpurge.db")
 BAN_PATH = str(BASE_DIR / "databases" / "ban.db")
 DP_PATH = str(BASE_DIR / "databases" / "discordphone.db")
+DDB_PATH = str(BASE_DIR / "databases" / "daily.db")
+WORDS_PATH = str(BASE_DIR / "databases" / "words_dictionary.json")
 
 # Top.gg settings
 TOPGG_API_URL = "https://top.gg/api/bots/{bot_id}/check"

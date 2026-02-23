@@ -939,7 +939,7 @@ class Points(commands.Cog):
 
         self.db_pool: Optional[asyncio.Queue] = None
         self.ctx_menu = app_commands.ContextMenu(
-            name='Report Message',
+            name='Report Message to Server Mods',
             callback=self.report_message_menu
         )
         self.bot.tree.add_command(self.ctx_menu)
