@@ -164,7 +164,7 @@ class DiscordPhone(commands.Cog):
         self.message_map = {}
 
         self.report_ctx_menu = app_commands.ContextMenu(
-            name="Report Message",
+            name="Report DiscordPhone Message",
             callback=self.report_context
         )
         self.bot.tree.add_command(self.report_ctx_menu)
@@ -236,7 +236,6 @@ class DiscordPhone(commands.Cog):
         return await channel.create_webhook(name="Dopamine")
 
     async def timeout_handler(self, call: CallSession):
-        """Hard 30-minute inactivity hangup."""
         await asyncio.sleep(1800)
         await self.end_call(call, "☎️ Call disconnected due to 30 minutes of inactivity.")
 
@@ -247,8 +246,8 @@ class DiscordPhone(commands.Cog):
         self.active_calls.pop(call.chan_a, None)
         self.active_calls.pop(call.chan_b, None)
 
-        chan_a = self.bot.get_channel(call.chan_a)
-        chan_b = self.bot.get_channel(call.chan_b)
+        chan_a = self.bot.get_channel(call.chan_a) or await self.bot.fetch_channel(call.chan_a)
+        chan_b = self.bot.get_channel(call.chan_b) or await self.bot.fetch_channel(call.chan_b)
 
         if chan_a: await chan_a.send(reason)
         if chan_b: await chan_b.send(reason)
@@ -260,7 +259,7 @@ class DiscordPhone(commands.Cog):
 
         call = self.active_calls[message.channel.id]
         peer_channel_id = call.chan_b if call.chan_a == message.channel.id else call.chan_a
-        peer_channel = self.bot.get_channel(peer_channel_id)
+        peer_channel = self.bot.get_channel(peer_channel_id) or await self.bot.fetch_channel(peer_channel_id)
         if not peer_channel:
             return
 
@@ -310,6 +309,25 @@ class DiscordPhone(commands.Cog):
         }
         call.history.append(msg_data)
         self.message_map[sent_msg.id] = msg_data
+
+    @commands.Cog.listener()
+    async def on_typing(self, channel: discord.abc.Messageable, user: discord.User, when):
+        if user.bot:
+            return
+
+        if channel.id not in self.active_calls:
+            return
+
+        call = self.active_calls[channel.id]
+
+        peer_channel_id = call.chan_b if call.chan_a == channel.id else call.chan_a
+        peer_channel = self.bot.get_channel(peer_channel_id) or await self.bot.fetch_channel(peer_channel_id)
+
+        if peer_channel:
+            try:
+                await peer_channel.typing()
+            except discord.Forbidden:
+                pass
 
     dp_group = app_commands.Group(name="discordphone", description="Discordphone core commands")
 
