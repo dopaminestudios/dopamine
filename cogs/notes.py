@@ -331,7 +331,7 @@ async def note_list(interaction: discord.Interaction):
             description="\n".join(f"- {name}" for name in current_notes),
             color=discord.Color(0x944ae8)
         )
-        embed.set_footer(text=f"Page {view.page}/{view.total_pages} • Use /note fetch to retrieve")
+        embed.set_footer(text=f"Page {view.page}/{view.total_pages} • Use /note get to retrieve")
         return embed
 
     async def custom_update_view(interaction: discord.Interaction):

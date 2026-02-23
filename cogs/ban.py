@@ -9,14 +9,12 @@ from config import BAN_PATH
 class BanningCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-
         self.banned_users_cache: set[int] = set()
         self.banned_guilds_cache: set[int] = set()
-
         self.db_path = BAN_PATH
         self.db_pool: asyncio.Queue[aiosqlite.Connection] = asyncio.Queue(maxsize=2)
 
-        self.bot.tree.add_check(self.global_ban_check)
+        self.bot.tree.interaction_check = self.global_ban_check
 
     async def cog_load(self):
         for _ in range(2):
@@ -49,7 +47,8 @@ class BanningCog(commands.Cog):
                     self.banned_guilds_cache.add(row[0])
 
     async def cog_unload(self):
-        self.bot.tree.remove_check(self.global_ban_check)
+        self.bot.tree.interaction_check = None
+
         while not self.db_pool.empty():
             conn = self.db_pool.get_nowait()
             await conn.close()

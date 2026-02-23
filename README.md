@@ -1,7 +1,9 @@
 ﻿
 # Dopamine
 
-A Premium Experience, Minus the paywalls and nick-and-diming. Dopamine is a moderation and utility bot built to be easy to use and customisable while remaining 100% free to use with no paywalls. If it exists in the bot, you can use it.
+The Premium Experience, Minus the paywalls and nick-and-diming. Dopamine is a moderation and utility bot built to be easy to use and customisable while remaining 100% free to use with no paywalls. If it exists in the bot, you can use it, no strings attached.
+
+Created by **Dopamine Studios**.
 
 # Invite Dopamine
 
@@ -13,7 +15,7 @@ If you have any questions, suggestions, or issues, you can join the support serv
 
 ### Moderation & Administration
 
-* Point-Based System: A customizable moderation system where actions (warn, ban, etc.) carry point values. Includes an automated decay system so users aren't penalized indefinitely for old mistakes.
+* Moderation System: A completely customizable moderation system where actions (warn, ban, etc.) are triggered when a defined warning count is reached. Includes warning decay feature, and rejoin policy feature. Also supports Message Reporting.
 
 * Slowmode Scheduler: Schedule slowmode to enable/disable automatically at specific times of the day.
 
@@ -49,7 +51,7 @@ If you have any questions, suggestions, or issues, you can join the support serv
 
 # The Team
 
-Dopamine is a **solo-project** by me, **Smite**. And I plan to keep it that way for the foreseeable future.
+Dopamine is developed by **Dopamine Studios**. However, contrary to what the name might suggest, I'm a solo dev and every single line of text and code here has been written by me, no one else.
 
 I started this project as a simple point-based moderation bot because I really like the concept - Now, it has evolved into a whole ecosystem of features within just six months.
 
@@ -85,6 +87,3 @@ I started this project as a simple point-based moderation bot because I really l
 
 This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). This means if you modify the bot and run it as a service, you must share your modified source code under the same license.
 
-## Contributing
-
-Since the project is now open source, contributions, bug reports, and pull requests are welcome. Please ensure that any additions follow the existing optimization patterns (asynchronous DB calls and connection pooling).

@@ -164,7 +164,7 @@ class DiscordPhone(commands.Cog):
         self.message_map = {}
 
         self.report_ctx_menu = app_commands.ContextMenu(
-            name="Report Message",
+            name="Report DiscordPhone Message",
             callback=self.report_context
         )
         self.bot.tree.add_command(self.report_ctx_menu)
@@ -236,7 +236,6 @@ class DiscordPhone(commands.Cog):
         return await channel.create_webhook(name="Dopamine")
 
     async def timeout_handler(self, call: CallSession):
-        """Hard 30-minute inactivity hangup."""
         await asyncio.sleep(1800)
         await self.end_call(call, "☎️ Call disconnected due to 30 minutes of inactivity.")
 
@@ -247,8 +246,8 @@ class DiscordPhone(commands.Cog):
         self.active_calls.pop(call.chan_a, None)
         self.active_calls.pop(call.chan_b, None)
 
-        chan_a = self.bot.get_channel(call.chan_a)
-        chan_b = self.bot.get_channel(call.chan_b)
+        chan_a = self.bot.get_channel(call.chan_a) or await self.bot.fetch_channel(call.chan_a)
+        chan_b = self.bot.get_channel(call.chan_b) or await self.bot.fetch_channel(call.chan_b)
 
         if chan_a: await chan_a.send(reason)
         if chan_b: await chan_b.send(reason)
@@ -260,7 +259,7 @@ class DiscordPhone(commands.Cog):
 
         call = self.active_calls[message.channel.id]
         peer_channel_id = call.chan_b if call.chan_a == message.channel.id else call.chan_a
-        peer_channel = self.bot.get_channel(peer_channel_id)
+        peer_channel = self.bot.get_channel(peer_channel_id) or await self.bot.fetch_channel(peer_channel_id)
         if not peer_channel:
             return
 
@@ -311,6 +310,25 @@ class DiscordPhone(commands.Cog):
         call.history.append(msg_data)
         self.message_map[sent_msg.id] = msg_data
 
+    @commands.Cog.listener()
+    async def on_typing(self, channel: discord.abc.Messageable, user: discord.User, when):
+        if user.bot:
+            return
+
+        if channel.id not in self.active_calls:
+            return
+
+        call = self.active_calls[channel.id]
+
+        peer_channel_id = call.chan_b if call.chan_a == channel.id else call.chan_a
+        peer_channel = self.bot.get_channel(peer_channel_id) or await self.bot.fetch_channel(peer_channel_id)
+
+        if peer_channel:
+            try:
+                await peer_channel.typing()
+            except discord.Forbidden:
+                pass
+
     dp_group = app_commands.Group(name="discordphone", description="Discordphone core commands")
 
     @dp_group.command(name="start", description="Start a Discordphone call")
@@ -322,7 +340,7 @@ class DiscordPhone(commands.Cog):
             return await interaction.response.send_message("This channel is already in the matchmaking queue!",
                                                            ephemeral=True)
 
-        await interaction.response.send_message("<a:loading:1475121732108025929> Putting you in the queue...", ephemeral=False)
+        await interaction.response.send_message("<a:loading:1475121732108025929> You have successfully joined the queue! Waiting for another user...", ephemeral=False)
 
         log_chan_id = self.settings_cache.get("log_channel")
         log_channel = self.bot.get_channel(log_chan_id) if log_chan_id else None
@@ -346,8 +364,8 @@ class DiscordPhone(commands.Cog):
             self.active_calls[chan_b.id] = call
             call.timeout_task = self.bot.loop.create_task(self.timeout_handler(call))
 
-            rules_str = "[Rules](https://example.com/rules.pdf)"
-            safe_msg = f"Connected! Please stay safe, and remember you can report problematic messages via right-clicking the message -> Apps -> 'Report Message' or using `/discordphone report`. By continuing, you agree to the {rules_str}. If you don't agree, stop using the bot."
+            rules_str = "[DiscordPhone Rules](https://docs.google.com/document/d/1ZuoKDQCrLMcY72PLW9kzTM7a1sS0y6mzyF_eNwV3low/edit?tab=t.0)"
+            safe_msg = f"Connected! Please stay safe, and remember you can report problematic messages via right-clicking the message -> Apps -> 'Report Message' or using `/discordphone report`. By continuing, you agree to the {rules_str}. If you don't agree, stop using the bot.\n\n-# Dopamine - a Dopamine Studios product. Providing the premium experience without the paywalls. Invite by clicking [here](<https://top.gg/bot/1411266382380924938/invite>)."
 
             await chan_a.send(f"{user_a.mention} {safe_msg}")
             await chan_b.send(f"{user_b.mention} {safe_msg}")
