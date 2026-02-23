@@ -9,7 +9,7 @@ import discord
 from discord import app_commands, Interaction, TextChannel
 from discord.ext import commands, tasks
 
-from config import DB_PATH, WORDS_PATH
+from config import DDB_PATH, WORDS_PATH
 
 logger = logging.getLogger('discord')
 class DatabasePool:
@@ -40,7 +40,7 @@ class DatabasePool:
 class DailyWords(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.db_pool = DatabasePool(DB_PATH)
+        self.db_pool = DatabasePool(DDB_PATH)
 
         self.active_channels = set()
         self.word_list = []
