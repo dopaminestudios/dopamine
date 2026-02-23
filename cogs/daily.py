@@ -1,7 +1,9 @@
 import asyncio
+import logging
 import random
 import aiosqlite
 from datetime import datetime, timedelta, time
+import json
 
 import discord
 from discord import app_commands, Interaction, TextChannel
@@ -9,7 +11,7 @@ from discord.ext import commands, tasks
 
 from config import DB_PATH, WORDS_PATH
 
-
+logger = logging.getLogger('discord')
 class DatabasePool:
 
     def __init__(self, db_path, size=5):
@@ -47,16 +49,31 @@ class DailyWords(commands.Cog):
         self.init_data.start()
 
     def cog_unload(self):
+        self.init_data.cancel()
         self.daily_task.cancel()
+
         asyncio.create_task(self.db_pool.close())
+
+        self.word_list.clear()
+        self.active_channels.clear()
+
+        self.word_list = None
+        self.active_channels = None
+        self.next_send_time = None
 
     @tasks.loop(count=1)
     async def init_data(self):
         try:
             with open(WORDS_PATH, 'r') as f:
-                self.word_list = list(set(f.read().split()))
+                data = json.load(f)
+                self.word_list = list(data.keys())
+
+            if not self.word_list:
+                logger.warning(f"Warning: {WORDS_PATH} was loaded but appears to be empty.")
+        except json.JSONDecodeError:
+            logger.error(f"Error: {WORDS_PATH} is not a valid JSON file.")
         except FileNotFoundError:
-            print(f"Error: {WORDS_PATH} not found.")
+            logger.critical(f"Error: {WORDS_PATH} not found.")
             return
 
         await self.db_pool.init()
@@ -115,7 +132,7 @@ class DailyWords(commands.Cog):
     @words.command(name="start", description="Start daily messages in a channel.")
     @app_commands.describe(channel="The channel where you want the daily word to be posted (defaults to current channel).")
     async def daily_words_start(self, interaction: Interaction, channel: discord.TextChannel = None):
-        channel_id = channel.id or interaction.channel_id
+        channel_id = channel.id if channel else interaction.channel_id
         conn = self.db_pool.get_connection()
 
         if channel_id in self.active_channels:
@@ -132,7 +149,7 @@ class DailyWords(commands.Cog):
     @app_commands.describe(
         channel="The channel where you want the daily word to be stopped (defaults to current channel).")
     async def daily_words_stop(self, interaction: Interaction, channel: discord.TextChannel = None):
-        channel_id = channel.id or interaction.channel_id
+        channel_id = channel.id if channel else interaction.channel_id
         conn = self.db_pool.get_connection()
         if channel_id not in self.active_channels:
             return await interaction.response.send_message("Feature isn't active in this channel.", ephemeral=True)
