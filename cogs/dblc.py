@@ -3,7 +3,6 @@ import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 from dopamineframework import mod_check
-from utils.log import LoggingManager
 import VERSION
 import time
 import psutil
@@ -15,6 +14,7 @@ from collections import deque
 from config import BOLDFONT_PATH
 from dopamineframework.ext.path import framework_version
 from typing import Union
+from utils.log import LoggingManager
 
 class Dblc(commands.Cog):
     def __init__(self, bot):
@@ -23,6 +23,7 @@ class Dblc(commands.Cog):
         self.bot_version = VERSION.bot_version
         self.latency_cache = deque(maxlen=1440)
         self.temp_samples = []
+        self.manager = LoggingManager
         self.process = psutil.Process(os.getpid())
         self.process.cpu_percent(interval=None)
         self.current_cpu = 0.0
@@ -191,7 +192,7 @@ class Dblc(commands.Cog):
                     ephemeral=True
                 )
             return await interaction.edit_original_response(f"An error occurred: {e}", ephemeral=True)
-        channel_id = await self.bot.manager.logging_get(interaction.guild.id)
+        channel_id = await self.manager.log_get(interaction.guild.id)
         log_ch = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
         if log_ch:
             log_embed = discord.Embed(
