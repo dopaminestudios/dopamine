@@ -17,15 +17,22 @@ class DBLCommands(commands.Cog):
         self.update_dbl_commands.cancel()
 
     def format_command(self, command):
+        cmd_type = getattr(command, 'type', discord.AppCommandType.chat_input)
+
+        type_value = cmd_type.value if hasattr(cmd_type, 'value') else 1
+
         data = {
             "name": command.name,
-            "type": command.type.value,
+            "type": type_value,
         }
 
-        if command.type == discord.AppCommandType.chat_input:
-            data["description"] = command.description or "No description provided."
-            if hasattr(command, 'options') and command.options:
-                data["options"] = [opt.to_dict() for opt in command.options]
+        description = getattr(command, 'description', "No description provided.")
+        data["description"] = description or "No description provided."
+
+        if cmd_type == discord.AppCommandType.chat_input:
+            options = getattr(command, 'options', [])
+            if options:
+                data["options"] = [opt.to_dict() for opt in options]
         else:
             data["description"] = ""
 
