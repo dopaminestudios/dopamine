@@ -84,7 +84,7 @@ class Logging(commands.Cog):
     @app_commands.describe(channel="Channel to use for logs")
     async def setlog(self, interaction: discord.Interaction, channel: discord.TextChannel):
         already = await self.manager.logging_get(interaction.guild.id)
-        await self.manager.logging_set(interaction.guild.id, channel.id)
+        await self.manager.log_set(interaction.guild.id, channel.id)
 
         embed = discord.Embed(
             title="This channel has been set as the log channel.",
@@ -104,13 +104,13 @@ class Logging(commands.Cog):
     @log.command(name="get", description="Check what channel is set as the logging channel.")
     @app_commands.check(mod_check)
     async def getlog(self, interaction: discord.Interaction):
-        channel_id = await self.manager.logging_get(interaction.guild.id)
+        channel_id = await self.manager.log_get(interaction.guild.id)
         await interaction.response.send_message(f"The logging channel is currently set to <#{channel_id}>.", ephemeral=True)
 
     @log.command(name="test", description="Test whether the bot can access the logging channel or not.")
     @app_commands.check(mod_check)
     async def testlog(self, interaction: discord.Interaction):
-        channel_id = await self.manager.logging_get(interaction.guild.id)
+        channel_id = await self.manager.log_get(interaction.guild.id)
         if not channel_id:
             return await interaction.response.send_message(f"No logging channel is set in **{interaction.guild}**.")
         channel = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
@@ -126,7 +126,7 @@ class Logging(commands.Cog):
     @log.command(name="disable", description="Disable logging and delete logging channel for this server from database.")
     @app_commands.check(mod_check)
     async def deletelog(self, interaction: discord.Interaction):
-        exists = await self.manager.logging_get(interaction.guild.id)
+        exists = await self.manager.log_get(interaction.guild.id)
         if not exists:
             return await interaction.response.send_message("Logging is already disabled in this server.", ephemeral=True)
 
@@ -137,6 +137,6 @@ class Logging(commands.Cog):
         await view.wait()
 
         if view.value is True:
-            await self.manager.logging_delete(interaction.guild_id)
+            await self.manager.log_remove(interaction.guild_id)
 async def setup(bot):
     await bot.add_cog(Logging(bot))
