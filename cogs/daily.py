@@ -93,7 +93,7 @@ class DailyWords(commands.Cog):
                 self.next_send_time = datetime.fromisoformat(row[0])
             else:
                 now = datetime.now()
-                self.next_send_time = datetime.combine(now.date() + timedelta(days=1), time(0, 1))
+                self.next_send_time = datetime.combine(now.date() + timedelta(days=1), time(0, 0))
                 await self.save_next_time()
 
         self.daily_task.start()
@@ -124,15 +124,17 @@ class DailyWords(commands.Cog):
                     except Exception as e:
                         print(f"Failed to send to {channel_id}: {e}")
 
-            self.next_send_time = self.next_send_time + timedelta(hours=24) - timedelta(minutes=1)
+            self.next_send_time = self.next_send_time + timedelta(hours=23)
             await self.save_next_time()
 
     daily = app_commands.Group(name="daily", description="Daily commands")
     words = app_commands.Group(name="words", description="Words commands", parent=daily)
+
     @words.command(name="start", description="Start daily messages in a channel.")
-    @app_commands.describe(channel="The channel where you want the daily word to be posted (defaults to current channel).")
+    @app_commands.describe(
+        channel="The channel where you want the daily word to be posted (defaults to current channel).")
     async def daily_words_start(self, interaction: Interaction, channel: discord.TextChannel = None):
-        channel_id = channel.id if channel else interaction.channel_id
+        channel_id = (channel.id if channel else interaction.channel_id)
         conn = self.db_pool.get_connection()
 
         if channel_id in self.active_channels:
@@ -142,8 +144,11 @@ class DailyWords(commands.Cog):
         await conn.commit()
         self.active_channels.add(channel_id)
 
+        unix_timestamp = int(self.next_send_time.timestamp())
+
         await interaction.response.send_message(
-            f"Daily words started! Next word at: {self.next_send_time.strftime('%Y-%m-%d %H:%M')}")
+            f"Daily words started! Next word at: <t:{unix_timestamp}:F> (<t:{unix_timestamp}:R>)"
+        )
 
     @words.command(name="stop", description="Stop daily messages in a channel.")
     @app_commands.describe(
