@@ -8,6 +8,7 @@ import json
 import discord
 from discord import app_commands, Interaction, TextChannel
 from discord.ext import commands, tasks
+from dopamineframework import mod_check
 
 from config import DDB_PATH, WORDS_PATH
 
@@ -131,6 +132,7 @@ class DailyWords(commands.Cog):
     words = app_commands.Group(name="words", description="Words commands", parent=daily)
 
     @words.command(name="start", description="Start daily messages in a channel.")
+    @app_commands.check(mod_check)
     @app_commands.describe(
         channel="The channel where you want the daily word to be posted (defaults to current channel).")
     async def daily_words_start(self, interaction: Interaction, channel: discord.TextChannel = None):
@@ -151,6 +153,7 @@ class DailyWords(commands.Cog):
         )
 
     @words.command(name="stop", description="Stop daily messages in a channel.")
+    @app_commands.check(mod_check)
     @app_commands.describe(
         channel="The channel where you want the daily word to be stopped (defaults to current channel).")
     async def daily_words_stop(self, interaction: Interaction, channel: discord.TextChannel = None):
