@@ -990,8 +990,18 @@ class EmbedFieldModal(discord.ui.Modal):
         elif trait == "author_icon_url":
             current_value = self.draft.author_icon_url
 
+        if trait == "description":
+            self.input_field = discord.ui.TextInput(
+                label="Enter description",
+                placeholder="Type here...",
+                style=discord.TextStyle.long,
+                default=current_value,
+                required=False,
+                min_length=1,
+                max_length=4096
+            )
         self.input_field = discord.ui.TextInput(
-            label="Enter value",
+            label=f"Enter value",
                        placeholder="Type here...",
             default=current_value,
             required=False,
