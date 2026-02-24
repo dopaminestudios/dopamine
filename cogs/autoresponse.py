@@ -9,7 +9,7 @@ import aiosqlite
 import discord
 from discord import app_commands
 from discord.ext import commands
-from thefuzz import fuzz
+from rapidfuzz import fuzz
 
 from config import ARSPDB_PATH
 from dopamineframework import PrivateLayoutView, mod_check
