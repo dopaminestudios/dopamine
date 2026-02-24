@@ -11,7 +11,7 @@ from discord.ext import commands, tasks
 
 from config import DDB_PATH, WORDS_PATH
 
-logger = logging.getLogger('discord')
+
 class DatabasePool:
 
     def __init__(self, db_path, size=5):
@@ -69,11 +69,11 @@ class DailyWords(commands.Cog):
                 self.word_list = list(data.keys())
 
             if not self.word_list:
-                logger.warning(f"Warning: {WORDS_PATH} was loaded but appears to be empty.")
+                print(f"Warning: {WORDS_PATH} was loaded but appears to be empty.")
         except json.JSONDecodeError:
-            logger.error(f"Error: {WORDS_PATH} is not a valid JSON file.")
+            print(f"Error: {WORDS_PATH} is not a valid JSON file.")
         except FileNotFoundError:
-            logger.critical(f"Error: {WORDS_PATH} not found.")
+            print(f"Error: {WORDS_PATH} not found.")
             return
 
         await self.db_pool.init()
