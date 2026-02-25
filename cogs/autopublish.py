@@ -8,7 +8,6 @@ from typing import List, Set
 
 from config import APDB_PATH
 
-logger = logging.getLogger("discord")
 
 class ConnectionPool:
 
@@ -80,9 +79,9 @@ class AutoPublish(commands.Cog):
             try:
                 await message.publish()
             except discord.Forbidden:
-                logger.error(f"Missing permissions to publish in {message.channel.id}")
+                print(f"Missing permissions to publish in {message.channel.id}")
             except discord.HTTPException as e:
-                logger.error(f"Failed to publish message: {e}")
+                print(f"Failed to publish message: {e}")
 
     autopublish_group = app_commands.Group(name="autopublish",
                                            description="Manage auto-publishing for announcement channels.")
@@ -111,7 +110,7 @@ class AutoPublish(commands.Cog):
 
             await interaction.response.send_message(f"Auto-publish enabled for {channel.mention}.", ephemeral=True)
         except Exception as e:
-            logger.error(f"DB Error on enable: {e}")
+            print(f"DB Error on enable: {e}")
             await interaction.response.send_message("A database error occurred.", ephemeral=True)
         finally:
             await self.pool.release(conn)
@@ -157,7 +156,7 @@ class AutoPublish(commands.Cog):
 
             await interaction.response.send_message(f"Auto-publish disabled for {name}.", ephemeral=True)
         except Exception as e:
-            logger.error(f"DB Error on disable: {e}")
+            print(f"DB Error on disable: {e}")
             await interaction.response.send_message("A database error occurred.", ephemeral=True)
         finally:
             await self.pool.release(conn)

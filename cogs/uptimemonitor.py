@@ -3,7 +3,7 @@ from discord.ext import commands, tasks
 import aiohttp
 import logging
 from config import HEARTBEAT_URL
-logger = logging.getLogger('discord')
+
 
 
 class StatusHeartbeat(commands.Cog):
@@ -22,9 +22,9 @@ class StatusHeartbeat(commands.Cog):
             try:
                 async with session.get(self.heartbeat_url, timeout=10) as response:
                     if response.status != 200:
-                        logger.warning(f"Heartbeat failed with status: {response.status}")
+                        self.bot.logger.warning(f"Heartbeat failed with status: {response.status}")
             except Exception as e:
-                logger.error(f"Error sending heartbeat: {e}")
+                self.bot.logger.error(f"Error sending heartbeat: {e}")
 
     @send_heartbeat.before_loop
     async def before_heartbeat(self):

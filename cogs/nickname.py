@@ -140,6 +140,7 @@ class Nickname(commands.Cog):
         self.profanitycache: Set[str] = set()
         self.verifiedcache: Dict[int, Set[int]] = {}
         self.db_pool: Optional[asyncio.Queue[aiosqlite.Connection]] = None
+        self.manager = LoggingManager
 
     async def cog_load(self):
         await self.init_pools()
@@ -284,7 +285,7 @@ class Nickname(commands.Cog):
         return False
 
     async def log_nickname_reset(self, member: discord.Member, old_name: str, reason: str):
-        channel_id = await self.manager.logging_get(member.guild.id)
+        channel_id = await self.manager.log_get(member.guild.id)
         if not channel_id:
             return
         log_ch = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
@@ -310,7 +311,7 @@ class Nickname(commands.Cog):
             pass
 
     async def log_verify(self, member: discord.Member, author: discord.Member, status):
-        channel_id = await self.manager.logging_get(member.guild.id)
+        channel_id = await self.manager.log_get(member.guild.id)
         if not channel_id:
             return
         log_ch = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
@@ -335,7 +336,7 @@ class Nickname(commands.Cog):
             pass
 
     async def log_scan(self, author: discord.Member):
-        channel_id = await self.manager.logging_get(author.guild.id)
+        channel_id = await self.manager.log_get(author.guild.id)
         if not channel_id:
             return
         log_ch = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
@@ -355,7 +356,7 @@ class Nickname(commands.Cog):
             pass
 
     async def log_profanity_toggle(self, member: discord.Member, new_state):
-        channel_id = await self.manager.logging_get(member.guild.id)
+        channel_id = await self.manager.log_get(member.guild.id)
         if not channel_id:
             return
         log_ch = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
@@ -375,7 +376,7 @@ class Nickname(commands.Cog):
             pass
 
     async def log_symbol_toggle(self, member: discord.Member, new_state):
-        log_ch = await self.manager.logging_get(member.guild.id)
+        log_ch = await self.manager.log_get(member.guild.id)
         if not log_ch:
             return
 
@@ -394,7 +395,7 @@ class Nickname(commands.Cog):
             pass
 
     async def log_placeholder_change(self, member: discord.Member, new_state):
-        channel_id = await self.manager.logging_get(member.guild.id)
+        channel_id = await self.manager.log_get(member.guild.id)
         if not channel_id:
             return
         log_ch = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)

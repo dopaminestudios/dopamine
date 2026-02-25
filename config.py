@@ -52,6 +52,8 @@ BAN_PATH = str(BASE_DIR / "databases" / "ban.db")
 DP_PATH = str(BASE_DIR / "databases" / "discordphone.db")
 DDB_PATH = str(BASE_DIR / "databases" / "daily.db")
 WORDS_PATH = str(BASE_DIR / "databases" / "words_dictionary.json")
+EDB_PATH = str(BASE_DIR / "databases" / "embeds.db")
+ARSPDB_PATH = str(BASE_DIR / "databases" / "autoresponse.db")
 
 # Top.gg settings
 TOPGG_API_URL = "https://top.gg/api/bots/{bot_id}/check"

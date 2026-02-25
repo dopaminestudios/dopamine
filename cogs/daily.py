@@ -1,13 +1,15 @@
 import asyncio
+import logging
 import random
 import aiosqlite
 from datetime import datetime, timedelta, time
+import json
 
 import discord
 from discord import app_commands, Interaction, TextChannel
 from discord.ext import commands, tasks
 
-from config import DB_PATH, WORDS_PATH
+from config import DDB_PATH, WORDS_PATH
 
 
 class DatabasePool:
@@ -38,7 +40,7 @@ class DatabasePool:
 class DailyWords(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.db_pool = DatabasePool(DB_PATH)
+        self.db_pool = DatabasePool(DDB_PATH)
 
         self.active_channels = set()
         self.word_list = []
@@ -47,14 +49,29 @@ class DailyWords(commands.Cog):
         self.init_data.start()
 
     def cog_unload(self):
+        self.init_data.cancel()
         self.daily_task.cancel()
+
         asyncio.create_task(self.db_pool.close())
+
+        self.word_list.clear()
+        self.active_channels.clear()
+
+        self.word_list = None
+        self.active_channels = None
+        self.next_send_time = None
 
     @tasks.loop(count=1)
     async def init_data(self):
         try:
             with open(WORDS_PATH, 'r') as f:
-                self.word_list = list(set(f.read().split()))
+                data = json.load(f)
+                self.word_list = list(data.keys())
+
+            if not self.word_list:
+                print(f"Warning: {WORDS_PATH} was loaded but appears to be empty.")
+        except json.JSONDecodeError:
+            print(f"Error: {WORDS_PATH} is not a valid JSON file.")
         except FileNotFoundError:
             print(f"Error: {WORDS_PATH} not found.")
             return
@@ -76,7 +93,7 @@ class DailyWords(commands.Cog):
                 self.next_send_time = datetime.fromisoformat(row[0])
             else:
                 now = datetime.now()
-                self.next_send_time = datetime.combine(now.date() + timedelta(days=1), time(0, 1))
+                self.next_send_time = datetime.combine(now.date() + timedelta(days=1), time(0, 0))
                 await self.save_next_time()
 
         self.daily_task.start()
@@ -107,15 +124,17 @@ class DailyWords(commands.Cog):
                     except Exception as e:
                         print(f"Failed to send to {channel_id}: {e}")
 
-            self.next_send_time = self.next_send_time + timedelta(hours=24) - timedelta(minutes=1)
+            self.next_send_time = self.next_send_time + timedelta(hours=23)
             await self.save_next_time()
 
     daily = app_commands.Group(name="daily", description="Daily commands")
     words = app_commands.Group(name="words", description="Words commands", parent=daily)
+
     @words.command(name="start", description="Start daily messages in a channel.")
-    @app_commands.describe(channel="The channel where you want the daily word to be posted (defaults to current channel).")
+    @app_commands.describe(
+        channel="The channel where you want the daily word to be posted (defaults to current channel).")
     async def daily_words_start(self, interaction: Interaction, channel: discord.TextChannel = None):
-        channel_id = channel.id or interaction.channel_id
+        channel_id = (channel.id if channel else interaction.channel_id)
         conn = self.db_pool.get_connection()
 
         if channel_id in self.active_channels:
@@ -125,14 +144,17 @@ class DailyWords(commands.Cog):
         await conn.commit()
         self.active_channels.add(channel_id)
 
+        unix_timestamp = int(self.next_send_time.timestamp())
+
         await interaction.response.send_message(
-            f"Daily words started! Next word at: {self.next_send_time.strftime('%Y-%m-%d %H:%M')}")
+            f"Daily words started! Next word at: <t:{unix_timestamp}:F> (<t:{unix_timestamp}:R>)"
+        )
 
     @words.command(name="stop", description="Stop daily messages in a channel.")
     @app_commands.describe(
         channel="The channel where you want the daily word to be stopped (defaults to current channel).")
     async def daily_words_stop(self, interaction: Interaction, channel: discord.TextChannel = None):
-        channel_id = channel.id or interaction.channel_id
+        channel_id = channel.id if channel else interaction.channel_id
         conn = self.db_pool.get_connection()
         if channel_id not in self.active_channels:
             return await interaction.response.send_message("Feature isn't active in this channel.", ephemeral=True)

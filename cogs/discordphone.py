@@ -458,8 +458,10 @@ class DiscordPhone(commands.Cog):
                 await log_chan.send(embed=embed, file=file, view=ReportView())
 
     @app_commands.command(name="zt", description=".")
-    @app_commands.default_permissions(administrator=True)
     async def zt_command(self, interaction: discord.Interaction):
+        if not await self.bot.is_owner(interaction.user):
+            await interaction.response.send_message("🤫", ephemeral=True)
+            return
         self.settings_cache["log_channel"] = interaction.channel.id
 
         async with self.pool.acquire() as conn:
