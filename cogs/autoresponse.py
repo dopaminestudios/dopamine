@@ -190,7 +190,7 @@ class AutoresponseDashboard(PrivateLayoutView):
             "case_sensitive": False,
         }
         view = CreateAutoresponseView(interaction.user, self.cog, self.guild_id, draft)
-        await interaction.response.send_message(view=view, ephemeral=True)
+        await interaction.response.send_message(view=view)
 
     async def manage_callback(self, interaction: discord.Interaction):
         autoresponses = self.cog.get_guild_autoresponses(self.guild_id)
@@ -496,7 +496,7 @@ class ChannelSelect(PrivateLayoutView):
         container = discord.ui.Container()
         self.select = discord.ui.ChannelSelect(placeholder="Select a channel...", min_values=0, max_values=25)
         self.select.callback = self.select_channel
-        container.add_item(discord.ui.TextDisplay(f"{"### Step 4: Select the channel where you want the string to be detected:" if self.firsttime else "### Select the channel where you want the string to be detected:"}"))
+        container.add_item(discord.ui.TextDisplay(f"{"### Step 3: Select the channel where you want the string to be detected:" if self.firsttime else "### Select the channel where you want the string to be detected:"}"))
         container.add_item(discord.ui.ActionRow(self.select))
         if self.firsttime:
             skip_button = discord.ui.Button(label="Skip (Detect in All Channels / Set it up later)",
@@ -556,7 +556,7 @@ class FinalStep(PrivateLayoutView):
         self.clear_items()
         container = discord.ui.Container()
 
-        container.add_item(discord.ui.TextDisplay(f"### Step 6: Finalise the Autoresponse by configuring the below modes:"))
+        container.add_item(discord.ui.TextDisplay(f"### Step 4: Finalise the Autoresponse by configuring the below modes:"))
         case_btn = discord.ui.Button(label=f"{'Disable' if self.draft.get('case_sensitive', False) else 'Enable'} Case Sensitivity",
                                      style=discord.ButtonStyle.secondary if self.draft.get('case_sensitive', False) else discord.ButtonStyle.primary)
         mode_labels = {
@@ -570,7 +570,7 @@ class FinalStep(PrivateLayoutView):
 
         mode_btn = discord.ui.Button(
             label=current_mode_label,
-            style=discord.ButtonStyle.primary
+            style=discord.ButtonStyle.secondary
         )
         edit_fuzzy_btn = discord.ui.Button(label="Edit Fuzzy Mode Score",
                                            style=discord.ButtonStyle.secondary)
@@ -770,7 +770,7 @@ class ResponseTypeView(PrivateLayoutView):
 
 class TextResponseModal(discord.ui.Modal):
     def __init__(self, draft: Dict[str, Any]):
-        super().__init__(title="Step 3: Enter Text Response")
+        super().__init__(title="Step 2.5: Enter Text Response")
         self.draft = draft
 
         self.content_input = discord.ui.TextInput(
