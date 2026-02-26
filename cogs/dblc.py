@@ -449,7 +449,7 @@ class Dblc(commands.Cog):
         )
 
         if self.bot.user.avatar:
-            embed.set_image(url=self.bot.user.avatar.url)
+            embed.set_thumbnail(url=self.bot.user.avatar.url)
 
 
         await interaction.response.send_message(embed=embed)
