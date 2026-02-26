@@ -190,7 +190,7 @@ class AutoresponseDashboard(PrivateLayoutView):
             "case_sensitive": False,
         }
         view = CreateAutoresponseView(interaction.user, self.cog, self.guild_id, draft)
-        await interaction.response.send_message(view=view)
+        await interaction.response.send_message(view=view, ephemeral=True)
 
     async def manage_callback(self, interaction: discord.Interaction):
         autoresponses = self.cog.get_guild_autoresponses(self.guild_id)
