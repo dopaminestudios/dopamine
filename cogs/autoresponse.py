@@ -612,7 +612,7 @@ class FinalStep(PrivateLayoutView):
         async def save_and_start(interaction: discord.Interaction):
             record = await self.cog.create_autoresponse_from_draft(self.guild_id, interaction.user.id, self.draft)
             await interaction.response.send_message(
-                content=f"Autoresponse for trigger `{record.trigger}` saved and enabled successfully.", view=None, ephemeral=True
+                content=f"Autoresponse for trigger `{record.trigger}` saved and enabled successfully!", view=None, ephemeral=True
             )
 
         case_btn.callback = toggle_case
