@@ -4,8 +4,9 @@ from discord.ext import commands, tasks
 import aiohttp
 import logging
 from config import DBL_TOKEN
+from config import OVERRIDE_VOTEWALL
 
-
+logger = logging.getLogger("discord")
 class DBLCommands(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
@@ -40,26 +41,27 @@ class DBLCommands(commands.Cog):
 
     @tasks.loop(hours=24)
     async def update_dbl_commands(self):
-        await self.bot.wait_until_ready()
+        if not OVERRIDE_VOTEWALL:
+            await self.bot.wait_until_ready()
 
-        all_commands = self.bot.tree.get_commands()
+            all_commands = self.bot.tree.get_commands()
 
-        payload = [self.format_command(cmd) for cmd in all_commands]
+            payload = [self.format_command(cmd) for cmd in all_commands]
 
-        url = f"https://discordbotlist.com/api/v1/bots/{self.bot.user.id}/commands"
-        headers = {
-            "Authorization": f"Bot {self.dbl_token}",
-            "Content-Type": "application/json"
-        }
+            url = f"https://discordbotlist.com/api/v1/bots/{self.bot.user.id}/commands"
+            headers = {
+                "Authorization": f"Bot {self.dbl_token}",
+                "Content-Type": "application/json"
+            }
 
-        async with aiohttp.ClientSession() as session:
-            try:
-                async with session.post(url, json=payload, headers=headers) as resp:
-                    if resp.status != 200:
-                        text = await resp.text()
-                        logging.error(f"Failed to post commands to DBL. Status: {resp.status} - {text}")
-            except Exception as e:
-                logging.error(f"Error posting to DBL: {e}")
+            async with aiohttp.ClientSession() as session:
+                try:
+                    async with session.post(url, json=payload, headers=headers) as resp:
+                        if resp.status != 200:
+                            text = await resp.text()
+                            logger.error(f"Failed to post commands to DBL. Status: {resp.status} - {text}")
+                except Exception as e:
+                    logger.error(f"Error posting to DBL: {e}")
 
     @update_dbl_commands.before_loop
     async def before_update(self):

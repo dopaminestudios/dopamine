@@ -225,3 +225,4 @@ __pycache__/
 *.3
 *.4
 *.5
+/core/sync_state.json

@@ -998,14 +998,15 @@ class EmbedFieldModal(discord.ui.Modal):
                 default=current_value,
                 required=False,
                 min_length=1,
-                max_length=4096
+                max_length=4000
             )
-        self.input_field = discord.ui.TextInput(
-            label=f"Enter value",
-                       placeholder="Type here...",
-            default=current_value,
-            required=False,
-        )
+        else:
+            self.input_field = discord.ui.TextInput(
+                label=f"Enter value",
+                           placeholder="Type here...",
+                default=current_value,
+                required=False,
+            )
         self.add_item(self.input_field)
 
     async def on_submit(self, interaction: discord.Interaction):
