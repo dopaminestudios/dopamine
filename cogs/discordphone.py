@@ -31,6 +31,10 @@ class ConnectionPool:
         finally:
             self.pool.put_nowait(conn)
 
+    async def close(self):
+        while not self.pool.empty():
+            conn = await self.pool.get()
+            await conn.close()
 
 class CallSession:
     def __init__(self, chan_a, chan_b, user_a, user_b):
@@ -144,7 +148,7 @@ class ReportModal(discord.ui.Modal, title='Report Message'):
         self.call_session = call_session
 
     async def on_submit(self, interaction: discord.Interaction):
-        await interaction.response.send_message("Thank you for your report and for keeping the community safe! Your report will be processed by a moderator at Dopamine Studios shorty and appropriate action will be taken.",
+        await interaction.response.send_message("Thank you for your report and for keeping the community safe! Your report will be processed by a moderator at Dopamine Studios shortly and appropriate action will be taken.",
                                                 ephemeral=True)
         await self.cog.process_report(interaction, self.reason.value, self.target_msg_data, self.call_session)
 
@@ -174,7 +178,12 @@ class DiscordPhone(commands.Cog):
         self.bot.add_view(ReportView())
 
     async def cog_unload(self):
-        self.bot.tree.remove_command(self.report_ctx_menu.name, type=self.report_ctx_menu.type)
+
+        for call in self.active_calls.values():
+            if call.timeout_task:
+                call.timeout_task.cancel()
+
+        await self.pool.close()
 
     async def init_db(self):
         await self.pool.init()
