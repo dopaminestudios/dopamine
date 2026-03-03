@@ -13,6 +13,8 @@ HEARTBEAT_URL = os.getenv("HEARTBEAT_URL", None)
 if not TOKEN:
     raise SystemExit("Set DISCORD_TOKEN in .env")
 DBL_TOKEN = os.getenv("DBL_TOKEN")
+computerurl = os.getenv("COMPUTERURL", None)
+phoneurl = os.getenv("PHONEURL", None)
 
 # Base directory
 BASE_DIR = Path(__file__).resolve().parent
@@ -54,6 +56,9 @@ DDB_PATH = str(BASE_DIR / "databases" / "daily.db")
 WORDS_PATH = str(BASE_DIR / "databases" / "words_dictionary.json")
 EDB_PATH = str(BASE_DIR / "databases" / "embeds.db")
 ARSPDB_PATH = str(BASE_DIR / "databases" / "autoresponse.db")
+prompt = str(BASE_DIR / "databases" / "prompt.txt")
+with open(prompt, "r", encoding="utf-8") as f:
+    system_prompt = f.read().strip()
 
 # Top.gg settings
 TOPGG_API_URL = "https://top.gg/api/bots/{bot_id}/check"
