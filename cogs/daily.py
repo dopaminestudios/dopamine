@@ -65,16 +65,17 @@ class DailyWords(commands.Cog):
     @tasks.loop(count=1)
     async def init_data(self):
         try:
-            with open(WORDS_PATH, 'r') as f:
-                data = json.load(f)
-                self.word_list = list(data.keys())
+            with open(WORDS_PATH, 'r', encoding='utf-8') as f:
+                self.word_list = [line.strip() for line in f if line.strip()]
 
             if not self.word_list:
                 print(f"Warning: {WORDS_PATH} was loaded but appears to be empty.")
-        except json.JSONDecodeError:
-            print(f"Error: {WORDS_PATH} is not a valid JSON file.")
+
         except FileNotFoundError:
             print(f"Error: {WORDS_PATH} not found.")
+            return
+        except Exception as e:
+            print(f"Error reading {WORDS_PATH}: {e}")
             return
 
         await self.db_pool.init()
