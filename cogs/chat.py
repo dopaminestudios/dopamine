@@ -50,11 +50,42 @@ class AICog(commands.Cog):
         except asyncio.CancelledError:
             pass
 
+    def _format_response_payload(self, text, is_final=False):
+        color = discord.Colour(0x944ae8)
+        loading_prefix = self.loading_icon if not is_final else None
+
+        if len(text) > 8000:
+            text = text[:8000] + "\n\n*(Discord limits reached!)*"
+
+        content = None
+        embeds = []
+
+        if len(text) <= 2000:
+            content = f"### {loading_prefix} Dopamine is Thinking...\n{text}" if loading_prefix else text
+
+        elif len(text) <= 4000:
+            embed = discord.Embed(description= f"## {loading_prefix} Dopamine is Thinking...\n" + text if loading_prefix else text, colour=color)
+            embeds.append(embed)
+
+        elif len(text) <= 6000:
+            e1 = discord.Embed(description=f"## {loading_prefix} Dopamine is Thinking...\n" + text[:4000] if loading_prefix else text[:4000], colour=color)
+            e2 = discord.Embed(description=text[4000:], colour=color)
+            embeds = [e1, e2]
+
+        else:
+            content = text[:2000]
+            if loading_prefix: content = f"### {loading_prefix} Dopamine is Thinking...\n{content}"
+
+            e1 = discord.Embed(description=text[2000:6000], colour=color)
+            e2 = discord.Embed(description=text[6000:], colour=color)
+            embeds = [e1, e2]
+
+        return content, embeds
+
     async def _process_stream(self, response, message, stop_typing_event):
         full_content = ""
         msg_obj = None
         last_update = time.time()
-        loading_prefix = self.loading_icon
 
         async for line in response.content:
             line = line.decode('utf-8').strip()
@@ -74,43 +105,25 @@ class AICog(commands.Cog):
 
             current_time = time.time()
             if current_time - last_update >= 5.0 and full_content.strip():
+                content, embeds = self._format_response_payload(full_content, is_final=False)
                 try:
-                    if len(full_content) > 1980:
-                        embed = discord.Embed(
-                            title=f"{loading_prefix}",
-                            description=f"{full_content[:4090]}...",
-                            colour=discord.Colour(0x944ae8)
-                        )
-                        if msg_obj is None:
-                            msg_obj = await message.reply(embed=embed)
-                        else:
-                            await msg_obj.edit(content=None, embed=embed)
+                    if msg_obj is None:
+                        msg_obj = await message.reply(content=content, embeds=embeds)
                     else:
-                        display_text = f"{loading_prefix}\n{full_content[:1980]}..."
-                        if msg_obj is None:
-                            msg_obj = await message.reply(display_text)
-                        else:
-                            await msg_obj.edit(content=display_text)
+                        await msg_obj.edit(content=content, embeds=embeds)
                 except discord.HTTPException:
                     pass
                 last_update = current_time
 
         if full_content:
-            if len(full_content) <= 2000:
+            content, embeds = self._format_response_payload(full_content, is_final=True)
+            try:
                 if msg_obj is None:
-                    await message.reply(full_content)
+                    await message.reply(content=content, embeds=embeds)
                 else:
-                    await msg_obj.edit(content=full_content, embed=None)
-            else:
-                final_text = full_content[:4096]
-                if len(full_content) > 4096:
-                    final_text = full_content[:4000] + "...\n\n*(Can't fit entire response due to Discord's limitations!)*"
-
-                embed = discord.Embed(description=final_text, colour=discord.Colour(0x944ae8))
-                if msg_obj is None:
-                    await message.reply(embed=embed)
-                else:
-                    await msg_obj.edit(content=None, embed=embed)
+                    await msg_obj.edit(content=content, embeds=embeds)
+            except discord.HTTPException:
+                await message.channel.send("Error: Response was too large to format properly.")
 
         return full_content
 
