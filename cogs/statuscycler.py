@@ -30,7 +30,7 @@ class StatusCog(commands.Cog):
             f"✨ Watching {total_members} Members",
             "✨ Watching downfall of GiveawayBoat",
             "✨ It's so hard being the best!",
-            "✨ Bullying Sapphire for fun"
+            "✨ Giving Sapphire a hug (aww!)"
         ]
 
     @tasks.loop(seconds=30)
