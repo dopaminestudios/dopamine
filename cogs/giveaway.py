@@ -702,7 +702,7 @@ class TemplateHomepage(PrivateLayoutView):
         container = discord.ui.Container()
         container.add_item((discord.ui.TextDisplay("## Giveaway Templates")))
         container.add_item(discord.ui.TextDisplay(
-            "Giveaway Templates allow you to quicky start a giveaway without needing to manually make one from scratch. To create a new template, go to My Stuff. To browse through the list of user-created templates, click on Browse Templates."))
+            "Giveaway Templates allow you to quicky start a giveaway without needing to manually make one from scratch. To create a new template, go to My Templates. To browse through the list of user-created templates, click on Browse Templates."))
         container.add_item(discord.ui.Separator())
 
         repo_btn = discord.ui.Button(label="Browse Templates", style=discord.ButtonStyle.primary)
