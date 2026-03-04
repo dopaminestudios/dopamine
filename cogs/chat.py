@@ -14,6 +14,7 @@ class AICog(commands.Cog):
         self.message_history = {}
         self.last_activity = {}
         self.cooldowns = {}
+        self.loading_icon = "<a:527676429702266880:1478100927591223327> "
 
         self.pc_lock = asyncio.Lock()
         self.phone_lock = asyncio.Lock()
@@ -53,7 +54,7 @@ class AICog(commands.Cog):
         full_content = ""
         msg_obj = None
         last_update = time.time()
-        loading_prefix = "<a:527676429702266880:1478100927591223327> "
+        loading_prefix = self.loading_icon
 
         async for line in response.content:
             line = line.decode('utf-8').strip()
@@ -93,11 +94,13 @@ class AICog(commands.Cog):
 
         return full_content
 
-    async def _run_phone_request(self, session, guild_id, message, stop_typing_event):
-        history = self.message_history[guild_id].copy()
+    async def _run_phone_request(self, session, guild_id, message, stop_typing_event, history_snapshot):
+        # Use the snapshot instead of the global history
+        history = history_snapshot.copy()
         if history:
+            # (Your system prompt injection logic remains the same)
             first_user_content = history[0]["content"]
-            history[0]["content"] = f"INSTRUCTIONS: {system_prompt}\n\nUSER MESSAGE: {first_user_content}"
+            history[0]["content"] = f"INSTRUCTIONS: {system_prompt}\n\nUSER PROMPT: {first_user_content}"
 
         phone_payload = {
             "messages": history,
@@ -132,7 +135,7 @@ class AICog(commands.Cog):
             for mention in message.mentions:
                 prompt = prompt.replace(mention.mention, "")
 
-            prompt = f"{message.author.display_name}'s PROMPT: " + prompt.replace(f"<@!{self.bot.user.id}>", "").strip()
+            prompt = f"USER's PROMPT (User's name is {message.author.display_name}): " + prompt.replace(f"<@!{self.bot.user.id}>", "").strip()
 
             if not prompt:
                 return
@@ -140,15 +143,23 @@ class AICog(commands.Cog):
             if message.reference and message.reference.resolved:
                 ref_msg = message.reference.resolved
 
-                if ref_msg.author.id != self.bot.user.id:
+                if ref_msg.author.id == self.bot.user.id:
+                    quoted_content = ref_msg.content
+
+                    prompt = (
+                        f"CONTEXT: The user is quoting/replying to a previous message from YOU, Dopamine:\n"
+                        f"--- QUOTED MESSAGE ---\n{quoted_content}\n--- END QUOTE ---\n\n"
+                        f"USER'S PROMPT (User's name is {message.author.display_name}): {prompt}"
+                    )
+                else:
                     quoted_content = ref_msg.content
                     author_name = ref_msg.author.display_name
 
 
                     prompt = (
-                        f"CONTEXT: The following is a message from {author_name} that the user is replying to:\n"
+                        f"CONTEXT: The following is a message from {author_name} that the user is quoting/replying to:\n"
                         f"--- QUOTED MESSAGE ---\n{quoted_content}\n--- END QUOTE ---\n\n"
-                        f"USER'S PROMPT (User's name is {message.author.display_name}: {prompt}"
+                        f"USER'S PROMPT (User's name is {message.author.display_name}): {prompt}"
                     )
 
             guild_id = message.guild.id
@@ -162,7 +173,17 @@ class AICog(commands.Cog):
                     return
 
             self._manage_history(guild_id)
-            self.message_history[guild_id].append({"role": "user", "content": prompt})
+
+            # 1. Create the new user entry
+            new_user_message = {"role": "user", "content": prompt}
+
+            # 2. CREATE A SNAPSHOT: Copy the current history and add the new message
+            # This snapshot is what we send to the API so it won't change mid-stream
+            current_context = self.message_history[guild_id].copy()
+            current_context.append(new_user_message)
+
+            # 3. Update the global history only after creating the snapshot
+            self.message_history[guild_id].append(new_user_message)
             self._trim_to_tokens(guild_id, max_tokens=1750)
 
             stop_typing_event = asyncio.Event()
@@ -188,7 +209,7 @@ class AICog(commands.Cog):
                     target_lock = self.phone_lock
                     use_phone = True
                 else:
-                    queue_msg = await message.reply("Dopamine's servers seem to be busy! Putting you in the queue, please wait a few seconds...")
+                    queue_msg = await message.reply(f"{self.loading_icon}Thinking...")
                     target_lock = self.phone_lock
                     use_phone = True
                     await target_lock.acquire()
@@ -198,7 +219,7 @@ class AICog(commands.Cog):
                         pass
 
             elif pc_online:
-                queue_msg = await message.reply("Dopamine's servers seem to be busy! Putting you in the queue, please wait a few seconds...")
+                queue_msg = await message.reply(f"{self.loading_icon}Thinking...")
                 target_lock = self.pc_lock
                 await target_lock.acquire()
                 try:
@@ -217,7 +238,12 @@ class AICog(commands.Cog):
             try:
                 async with aiohttp.ClientSession() as session:
                     if not use_phone:
-                        pc_payload = {"model": "google-gemma-3-4b-it-qat-small-fix", "messages": self.message_history[guild_id], "stream": True, "max_tokens": 3072}
+                        pc_payload = {
+                            "model": "google-gemma-3-4b-it-qat-small-fix",
+                            "messages": current_context,
+                            "stream": True,
+                            "max_tokens": 4096
+                        }
                         try:
                             pc_timeout = aiohttp.ClientTimeout(sock_connect=2, sock_read=60)
                             async with session.post(computerurl, json=pc_payload, timeout=pc_timeout) as resp:
@@ -233,8 +259,7 @@ class AICog(commands.Cog):
                             target_lock.release()
                             async with self.phone_lock:
                                 try:
-                                    final_response_text = await self._run_phone_request(session, guild_id, message,
-                                                                                        stop_typing_event)
+                                    final_response_text = await self._run_phone_request(session, guild_id, message, stop_typing_event, current_context)
                                 except Exception:
                                     await message.reply("Error: Local servers seem to be unavailable! Please try again later.")
                         else:
