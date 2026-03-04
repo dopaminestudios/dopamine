@@ -74,38 +74,56 @@ class AICog(commands.Cog):
 
             current_time = time.time()
             if current_time - last_update >= 5.0 and full_content.strip():
-                display_text = f"{loading_prefix}{full_content[:1980]}..."
-
                 try:
-                    if msg_obj is None:
-                        msg_obj = await message.reply(display_text)
+                    if len(full_content) > 1980:
+                        embed = discord.Embed(
+                            title=f"{loading_prefix}",
+                            description=f"{full_content[:4090]}...",
+                            colour=discord.Colour(0x944ae8)
+                        )
+                        if msg_obj is None:
+                            msg_obj = await message.reply(embed=embed)
+                        else:
+                            await msg_obj.edit(content=None, embed=embed)
                     else:
-                        await msg_obj.edit(content=display_text)
+                        display_text = f"{loading_prefix}{full_content[:1980]}..."
+                        if msg_obj is None:
+                            msg_obj = await message.reply(display_text)
+                        else:
+                            await msg_obj.edit(content=display_text)
                 except discord.HTTPException:
                     pass
                 last_update = current_time
 
         if full_content:
-            final_text = full_content[:2000]
-            if msg_obj is None:
-                await message.reply(final_text)
+            if len(full_content) <= 2000:
+                if msg_obj is None:
+                    await message.reply(full_content)
+                else:
+                    await msg_obj.edit(content=full_content, embed=None)
             else:
-                await msg_obj.edit(content=final_text)
+                final_text = full_content[:4096]
+                if len(full_content) > 4096:
+                    final_text = full_content[:4000] + "...\n\n*(Can't fit entire response due to Discord's limitations!)*"
+
+                embed = discord.Embed(description=final_text, colour=discord.Colour(0x944ae8))
+                if msg_obj is None:
+                    await message.reply(embed=embed)
+                else:
+                    await msg_obj.edit(content=None, embed=embed)
 
         return full_content
 
     async def _run_phone_request(self, session, guild_id, message, stop_typing_event, history_snapshot):
-        # Use the snapshot instead of the global history
         history = history_snapshot.copy()
         if history:
-            # (Your system prompt injection logic remains the same)
             first_user_content = history[0]["content"]
             history[0]["content"] = f"INSTRUCTIONS: {system_prompt}\n\nUSER PROMPT: {first_user_content}"
 
         phone_payload = {
             "messages": history,
             "stream": True,
-            "max_tokens": 3072,
+            "max_tokens": 4098,
             "temperature": 0.3
         }
 
@@ -174,15 +192,11 @@ class AICog(commands.Cog):
 
             self._manage_history(guild_id)
 
-            # 1. Create the new user entry
             new_user_message = {"role": "user", "content": prompt}
 
-            # 2. CREATE A SNAPSHOT: Copy the current history and add the new message
-            # This snapshot is what we send to the API so it won't change mid-stream
             current_context = self.message_history[guild_id].copy()
             current_context.append(new_user_message)
 
-            # 3. Update the global history only after creating the snapshot
             self.message_history[guild_id].append(new_user_message)
             self._trim_to_tokens(guild_id, max_tokens=1750)
 
