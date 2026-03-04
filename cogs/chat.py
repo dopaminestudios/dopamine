@@ -14,7 +14,7 @@ class AICog(commands.Cog):
         self.message_history = {}
         self.last_activity = {}
         self.cooldowns = {}
-        self.loading_icon = "<a:527676429702266880:1478100927591223327> "
+        self.loading_icon = "<a:loading:1478761053642035240> "
 
         self.pc_lock = asyncio.Lock()
         self.phone_lock = asyncio.Lock()
@@ -86,7 +86,7 @@ class AICog(commands.Cog):
                         else:
                             await msg_obj.edit(content=None, embed=embed)
                     else:
-                        display_text = f"{loading_prefix}{full_content[:1980]}..."
+                        display_text = f"{loading_prefix}\n{full_content[:1980]}..."
                         if msg_obj is None:
                             msg_obj = await message.reply(display_text)
                         else:
