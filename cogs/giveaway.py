@@ -89,7 +89,7 @@ class CreateChoose(PrivateLayoutView):
 
     async def template_callback(self, interaction: discord.Interaction):
         view = CreatewithtemplatePage(self.cog, self.user)
-        await interaction.response.send_message(view=view, ephemeral=True)
+        await interaction.response.edit_message(view=view)
 
 
 class GiveawayEditSelect(discord.ui.Select):
@@ -810,6 +810,12 @@ class MystuffPage(PrivateLayoutView):
         row.add_item(create_btn)
         container.add_item(row)
 
+        back_btn = discord.ui.Button(label="Return to Template Homepage", style=discord.ButtonStyle.secondary)
+        back_btn.callback = self.back_callback
+        row = discord.ui.ActionRow()
+        row.add_item(back_btn)
+        container.add_item(discord.ui.Separator())
+        container.add_item(row)
         self.add_item(container)
 
     def create_edit_callback(self, template_data):
@@ -844,6 +850,9 @@ class MystuffPage(PrivateLayoutView):
         view = GiveawayPreviewView(self.cog, self.user, draft, template_mode=True)
         await interaction.response.send_message(embed=embed, view=view)
 
+    async def back_callback(self, interaction: discord.Interaction):
+        view = TemplateHomepage(self.cog, self.user)
+        await interaction.response.edit_message(view=view)
 
 class EditPage(PrivateLayoutView):
     def __init__(self, cog, user, template_data):
@@ -891,6 +900,13 @@ class EditPage(PrivateLayoutView):
         row.add_item(delete_btn)
 
         container.add_item(row)
+
+        back_btn = discord.ui.Button(label="Return to My Templates", style=discord.ButtonStyle.secondary)
+        back_btn.callback = self.back_callback
+        row = discord.ui.ActionRow()
+        row.add_item(back_btn)
+        container.add_item(discord.ui.Separator())
+        container.add_item(row)
         self.add_item(container)
 
     async def edit_callback(self, interaction: discord.Interaction):
@@ -914,9 +930,12 @@ class EditPage(PrivateLayoutView):
                                            self.data['prize'])
         await interaction.response.send_message(view=view, ephemeral=True)
 
+    async def back_callback(self, interaction: discord.Interaction):
+        view = MystuffPage(self.cog, self.user)
+        await interaction.response.edit_message(view=view)
 
 class BrowsePage(PrivateLayoutView):
-    def __init__(self, cog, user, templates, guild_id, page=1, exclude_global=False):
+    def __init__(self, cog, user, templates, guild_id, page=1, exclude_global=False, is_th: bool = False):
         super().__init__(user, timeout=None)
         self.cog = cog
         self.user = user
@@ -927,6 +946,7 @@ class BrowsePage(PrivateLayoutView):
         self.per_page = 5
         self.filter_templates()
         self.total_pages = (len(self.filtered_templates) - 1) // self.per_page + 1 if self.filtered_templates else 1
+        self.is_th = is_th
         self.build_layout()
 
     def filter_templates(self):
@@ -1028,6 +1048,13 @@ class BrowsePage(PrivateLayoutView):
         row.add_item(sort_dropdown)
         container.add_item(row)
 
+        back_btn = discord.ui.Button(label=f"Return to {'Template Homepage' if self.is_th else 'Previous Page'}", style=discord.ButtonStyle.secondary)
+        back_btn.callback = self.back_callback
+        row = discord.ui.ActionRow()
+        row.add_item(back_btn)
+        container.add_item(discord.ui.Separator())
+        container.add_item(row)
+
         self.add_item(container)
 
     def create_use_callback(self, t):
@@ -1084,6 +1111,12 @@ class BrowsePage(PrivateLayoutView):
     async def search_id_callback(self, interaction: discord.Interaction):
         await interaction.response.send_modal(SearchModal("id", self))
 
+    async def back_callback(self, interaction: discord.Interaction):
+        if self.is_th:
+            view = TemplateHomepage(self.cog, self.user)
+        else:
+            view = CreatewithtemplatePage(self.cog, self.user)
+        await interaction.response.edit_message(view=view)
 
 class SearchModal(discord.ui.Modal):
     def __init__(self, mode, parent_view):
@@ -1148,7 +1181,7 @@ class CreatewithtemplatePage(PrivateLayoutView):
     def build_layout(self):
         self.clear_items()
         container = discord.ui.Container()
-        container.add_item((discord.ui.TextDisplay("## Choose an option below to continue creating with template.")))
+        container.add_item((discord.ui.TextDisplay("### Choose an option below to continue creating with template.")))
         container.add_item(discord.ui.Separator())
 
         id_btn = discord.ui.Button(label="Enter Template ID", style=discord.ButtonStyle.primary)
@@ -1165,6 +1198,13 @@ class CreatewithtemplatePage(PrivateLayoutView):
 
         container.add_item(row)
 
+        back_btn = discord.ui.Button(label="Return to Create Giveaway Page", style=discord.ButtonStyle.secondary)
+        back_btn.callback = self.back_callback
+        row = discord.ui.ActionRow()
+        row.add_item(back_btn)
+        container.add_item(discord.ui.Separator())
+        container.add_item(row)
+
         self.add_item(container)
 
     async def enter_id_callback(self, interaction: discord.Interaction):
@@ -1174,13 +1214,16 @@ class CreatewithtemplatePage(PrivateLayoutView):
     async def browse_callback(self, interaction: discord.Interaction):
         templates = await self.cog.fetch_templates(guild_id=interaction.guild.id, mode="browse")
         view = BrowsePage(self.cog, self.user, templates, interaction.guild.id)
-        await interaction.response.send_message(view=view, ephemeral=True)
+        await interaction.response.edit_message(view=view)
 
     async def my_callback(self, interaction: discord.Interaction):
         templates = await self.cog.fetch_templates(user_id=self.user.id, mode="mine")
         view = MystuffUse(self.cog, self.user, templates)
-        await interaction.response.send_message(view=view, ephemeral=True)
+        await interaction.response.edit_message(view=view)
 
+    async def back_callback(self, interaction: discord.Interaction):
+        view = CreateChoose(self.cog, self.user)
+        await interaction.response.edit_message(view=view)
 
 class MystuffUse(PrivateLayoutView):
     def __init__(self, cog, user, templates, page=1):
@@ -1228,6 +1271,13 @@ class MystuffUse(PrivateLayoutView):
         row.add_item(go_btn)
         row.add_item(right_btn)
         container.add_item(row)
+
+        back_btn = discord.ui.Button(label="Return to Previous Page", style=discord.ButtonStyle.secondary)
+        back_btn.callback = self.back_callback
+        row = discord.ui.ActionRow()
+        row.add_item(back_btn)
+        container.add_item(discord.ui.Separator())
+        container.add_item(row)
         self.add_item(container)
 
     def create_use_callback(self, t):
@@ -1252,6 +1302,10 @@ class MystuffUse(PrivateLayoutView):
 
     async def goto_callback(self, interaction: discord.Interaction):
         await interaction.response.send_modal(GoToPageModal(self, self.total_pages))
+
+    async def back_callback(self, interaction: discord.Interaction):
+        view = CreateChoose(self.cog, self.user)
+        await interaction.response.edit_message(view=view)
 
 
 class GoToPageModal(discord.ui.Modal):
