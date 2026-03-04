@@ -1921,11 +1921,17 @@ class Giveaways(commands.Cog):
                             f"{time_display}",
                 colour=embed_color)
 
+        if draft.winner_role:
+            role_mentions = ", ".join([f"<@&{r}>" for r in draft.required_roles])
+            embed.add_field(name="Winners' Role", value=f"Winner(s) will receive the following role: {role_mentions}", inline=False)
         if draft.required_roles:
             role_mentions = ", ".join([f"<@&{r}>" for r in draft.required_roles])
             mode = "all of the following" if draft.required_behaviour == 0 else "one of the following"
             embed.add_field(name="Requirements", value=f"Must have **{mode}**: {role_mentions}", inline=False)
 
+        if draft.extra_entries:
+            role_mentions = ", ".join([f"<@&{e}>" for e in draft.extra_entries])
+            embed.add_field(name="Extra Entry Roles (+1 Entry Per Role)", value=f"{role_mentions}", inline=False)
         if draft.image:
             embed.set_image(url=draft.image)
         if draft.thumbnail:
