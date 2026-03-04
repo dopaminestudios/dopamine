@@ -721,12 +721,12 @@ class TemplateHomepage(PrivateLayoutView):
     async def browse_callback(self, interaction: discord.Interaction):
         templates = await self.cog.fetch_templates(guild_id=interaction.guild.id, mode="browse")
         view = BrowsePage(self.cog, self.user, templates, interaction.guild.id)
-        await interaction.response.send_message(view=view, ephemeral=True)
+        await interaction.response.edit_message(view=view)
 
     async def mystuff_callback(self, interaction: discord.Interaction):
         templates = await self.cog.fetch_templates(user_id=self.user.id, mode="mine")
         view = MystuffPage(self.cog, self.user, templates)
-        await interaction.response.send_message(view=view, ephemeral=True)
+        await interaction.response.edit_message(view=view)
 
 
 class MystuffPage(PrivateLayoutView):
@@ -815,7 +815,7 @@ class MystuffPage(PrivateLayoutView):
     def create_edit_callback(self, template_data):
         async def callback(interaction: discord.Interaction):
             view = EditPage(self.cog, self.user, template_data)
-            await interaction.response.send_message(view=view, ephemeral=True)
+            await interaction.response.edit_message(view=view)
 
         return callback
 
@@ -2129,7 +2129,7 @@ class Giveaways(commands.Cog):
     @app_commands.check(mod_check)
     async def template_cmd(self, interaction: discord.Interaction):
         view = TemplateHomepage(self, interaction.user)
-        await interaction.response.send_message(view=view, ephemeral=True)
+        await interaction.response.send_message(view=view)
 
     @app_commands.command(name="zr", description=".")
     async def set_review_channel(self, interaction: discord.Interaction):
