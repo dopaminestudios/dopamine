@@ -124,7 +124,7 @@ class EditPage(PrivateLayoutView):
             f"**Color:** `{p.get('embed_color') or 'Default'}`\n"
             f"**Conversation Duration:** `{p.get('conversation_duration', 10)}s`\n"
             f"**Include Bots:** `{'Yes' if bots_enabled else 'No'}`\n"
-            f"**Description:** {p.get('description') or '*None*'}"
+            f"**Description:** ```{p.get('description') or '*None*'}```"
         )
         container.add_item(discord.ui.TextDisplay(details))
         container.add_item(discord.ui.Separator())
