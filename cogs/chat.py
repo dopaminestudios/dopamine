@@ -217,7 +217,7 @@ class AICog(commands.Cog):
             try:
                 async with aiohttp.ClientSession() as session:
                     if not use_phone:
-                        pc_payload = {"model": "google/gemma-3-4b", "messages": self.message_history[guild_id], "stream": True, "max_tokens": 3072}
+                        pc_payload = {"model": "google-gemma-3-4b-it-qat-small-fix", "messages": self.message_history[guild_id], "stream": True, "max_tokens": 3072}
                         try:
                             pc_timeout = aiohttp.ClientTimeout(sock_connect=2, sock_read=60)
                             async with session.post(computerurl, json=pc_payload, timeout=pc_timeout) as resp:
