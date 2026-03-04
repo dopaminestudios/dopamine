@@ -4,7 +4,7 @@ import config
 import dopamineframework
 from discord import app_commands
 from discord.ext import commands
-from dotenv import load_dotenv
+from dotenv import load_dotenv, set_key
 import os
 import sys
 
@@ -28,6 +28,7 @@ class Reload(commands.Cog):
     @commands.command(name="rs")
     async def reload(self, ctx: commands.Context):
         if not await self.bot.is_owner(ctx.author):
+            await ctx.send("🤫")
             return
 
         modules_to_purge = [
@@ -60,6 +61,22 @@ class Reload(commands.Cog):
         except Exception as e:
             await ctx.send(f"Error: {e}")
 
+    @commands.command(name="url")
+    async def update_url(self, ctx, new_url: str):
+        if not await self.bot.is_owner(ctx.author):
+            await ctx.send("🤫")
+            return
+        dotenv_path = '.env'
+
+        try:
+            set_key(dotenv_path, "COMPUTERURL", new_url)
+
+            os.environ["COMPUTERURL"] = new_url
+
+            await ctx.send(f"Successfully updated `COMPUTERURL` to: `{new_url}`", delete_after=10)
+
+        except Exception as e:
+            await ctx.send(f"Error: {e}")
 
 async def setup(bot):
     await bot.add_cog(Reload(bot))
