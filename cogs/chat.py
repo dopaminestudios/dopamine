@@ -14,7 +14,7 @@ class AICog(commands.Cog):
         self.message_history = {}
         self.last_activity = {}
         self.cooldowns = {}
-        self.loading_icon = "<a:loading:1478761053642035240> "
+        self.loading_icon = "<a:dopamineloading:1478835080725270641> "
 
         self.pc_lock = asyncio.Lock()
         self.phone_lock = asyncio.Lock()
