@@ -1542,8 +1542,8 @@ class DestructiveConfirmationViewOld(PrivateLayoutView):
 
 
 class ConfirmationViewOld(PrivateLayoutView):
-    def __init__(self, title_text: str, body_text: str, color: discord.Color = None):
-        super().__init__(None, timeout=30)
+    def __init__(self, title_text: str, body_text: str, user: discord.User):
+        super().__init__(user, timeout=30)
         self.value = None
         self.title_text = title_text
         self.body_text = body_text
@@ -2217,7 +2217,7 @@ class Giveaways(commands.Cog):
                                                            ephemeral=True)
 
         body_content = f"Are you sure you want to end this giveaway right now and announce the winners?"
-        view = ConfirmationViewOld("Pending Confirmation", body_content)
+        view = ConfirmationViewOld("Pending Confirmation", body_content, interaction.user)
         await interaction.response.send_message(view=view)
         response = await interaction.original_response()
         view.message = response
@@ -2302,7 +2302,7 @@ class Giveaways(commands.Cog):
                         f"* {'Preserve old winners and their roles' if preserve_winners else f'over-write **{winners}** old winners and remove their winner role'}\n"
                         f"{f'* Give **{winners}** the winner role' if g[1] else ''}")
 
-        view = ConfirmationViewOld("Pending Confirmation", body_content)
+        view = ConfirmationViewOld("Pending Confirmation", body_content, interaction.user)
         response = await interaction.response.send_message(view=view)
         view.message = await interaction.original_response()
         await view.wait()
