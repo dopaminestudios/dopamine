@@ -5,7 +5,7 @@ import asyncio
 import time
 import json
 from config import computerurl, phoneurl, system_prompt
-import count_tokens
+from anthropic import Anthropic
 
 
 class AICog(commands.Cog):
@@ -29,7 +29,11 @@ class AICog(commands.Cog):
             self.message_history[guild_id] = []
 
     def _count_tokens(self, history):
-        return sum(count_tokens(m['content'], model="gpt-4") for m in history)
+        response = self.client.beta.messages.count_tokens(
+            model="claude-3-5-sonnet-20240620",
+            messages=history
+        )
+        return response.input_tokens
 
     def _trim_to_tokens(self, guild_id, max_tokens=1750):
         if guild_id not in self.message_history:
