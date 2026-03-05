@@ -5,7 +5,7 @@ import asyncio
 import time
 import json
 from config import computerurl, phoneurl, system_prompt
-import tiktoken
+import count_tokens
 
 
 class AICog(commands.Cog):
@@ -29,8 +29,7 @@ class AICog(commands.Cog):
             self.message_history[guild_id] = []
 
     def _count_tokens(self, history):
-        enc = tiktoken.get_encoding("cl100k_base")
-        return sum(len(enc.encode(m['content'])) for m in history)
+        return sum(count_tokens(m['content'], model="gpt-4") for m in history)
 
     def _trim_to_tokens(self, guild_id, max_tokens=1750):
         if guild_id not in self.message_history:
