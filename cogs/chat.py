@@ -42,9 +42,15 @@ class AICog(commands.Cog):
         if guild_id not in self.message_history:
             return
 
-        while self._count_tokens(self.message_history[guild_id]) > max_tokens and len(
-                self.message_history[guild_id]) > 1:
-            self.message_history[guild_id].pop(0)
+        while self._count_tokens(self.message_history[guild_id]) > max_tokens:
+            if len(self.message_history[guild_id]) >= 2:
+                self.message_history[guild_id].pop(0)
+                self.message_history[guild_id].pop(0)
+            elif len(self.message_history[guild_id]) == 1:
+                self.message_history[guild_id].pop(0)
+            else:
+                break
+
     async def _typing_indicator_task(self, channel, stop_event):
         try:
             while not stop_event.is_set():
