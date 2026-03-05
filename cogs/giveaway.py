@@ -2409,7 +2409,7 @@ class Giveaways(commands.Cog):
                 rows = await cursor.fetchall()
 
         if not rows:
-            return await interaction.edit_original_response("No giveaways found for this server.", ephemeral=True)
+            return await interaction.edit_original_response("No giveaways found for this server.")
 
         lines = []
         for i, (prize, ended, end_time, giveaway_id) in enumerate(rows, 1):
