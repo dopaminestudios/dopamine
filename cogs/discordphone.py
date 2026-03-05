@@ -6,8 +6,14 @@ import asyncio
 import io
 import contextlib
 from collections import deque
+import aiohttp
+import pyvips
+import time
+import random
 
 from config import DP_PATH
+
+PERM_STORAGE_CHANNEL_ID = 1476933186461106187
 
 
 class ConnectionPool:
@@ -31,6 +37,10 @@ class ConnectionPool:
         finally:
             self.pool.put_nowait(conn)
 
+    async def close(self):
+        while not self.pool.empty():
+            conn = await self.pool.get()
+            await conn.close()
 
 class CallSession:
     def __init__(self, chan_a, chan_b, user_a, user_b):
@@ -99,6 +109,10 @@ class ReportView(discord.ui.View):
             await banning_cog.ban_guild_api(ids['author_guild_id'])
             await interaction.response.send_message("Author's Guild has been banned.", ephemeral=True)
 
+    @discord.ui.button(label="Warn Custom User", style=discord.ButtonStyle.primary, custom_id="dp_warn_custom")
+    async def warn_custom(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(CustomWarnModal())
+
     @discord.ui.button(label="Warn Reporter", style=discord.ButtonStyle.secondary, custom_id="dp_warn_reporter")
     async def warn_reporter(self, interaction: discord.Interaction, button: discord.ui.Button):
         ids = self.extract_ids(interaction.message.embeds[0])
@@ -144,7 +158,7 @@ class ReportModal(discord.ui.Modal, title='Report Message'):
         self.call_session = call_session
 
     async def on_submit(self, interaction: discord.Interaction):
-        await interaction.response.send_message("Thank you for your report and for keeping the community safe! Your report will be processed by a moderator at Dopamine Studios shorty and appropriate action will be taken.",
+        await interaction.response.send_message("Thank you for your report and for keeping the community safe! Your report will be processed by a moderator at Dopamine Studios shortly and appropriate action will be taken.",
                                                 ephemeral=True)
         await self.cog.process_report(interaction, self.reason.value, self.target_msg_data, self.call_session)
 
@@ -162,6 +176,12 @@ class DiscordPhone(commands.Cog):
         self.waiting_user = None
         self.active_calls = {}
         self.message_map = {}
+        self.queue = []
+        self.active_calls = {}
+        self.message_map = {}
+
+        self.skip_cooldowns = {}
+        self.last_partner = {}
 
         self.report_ctx_menu = app_commands.ContextMenu(
             name="Report DiscordPhone Message",
@@ -174,7 +194,12 @@ class DiscordPhone(commands.Cog):
         self.bot.add_view(ReportView())
 
     async def cog_unload(self):
-        self.bot.tree.remove_command(self.report_ctx_menu.name, type=self.report_ctx_menu.type)
+
+        for call in self.active_calls.values():
+            if call.timeout_task:
+                call.timeout_task.cancel()
+
+        await self.pool.close()
 
     async def init_db(self):
         await self.pool.init()
@@ -209,8 +234,42 @@ class DiscordPhone(commands.Cog):
                     if row[0] == "log_channel":
                         self.settings_cache["log_channel"] = int(row[1])
 
+    async def try_match(self, channel, user):
+
+        valid_partners = [
+            (c_id, u_obj) for c_id, u_obj in self.queue
+            if u_obj.id != self.last_partner.get(user.id) and u_obj.id != user.id
+        ]
+
+        if valid_partners:
+            partner_chan_id, partner_user = random.choice(valid_partners)
+
+            self.queue = [(c, u) for c, u in self.queue if u.id != partner_user.id]
+
+            chan_a = self.bot.get_channel(partner_chan_id) or await self.bot.fetch_channel(partner_chan_id)
+            chan_b = channel
+
+            call = CallSession(chan_a.id, chan_b.id, partner_user, user)
+            self.active_calls[chan_a.id] = call
+            self.active_calls[chan_b.id] = call
+            call.timeout_task = self.bot.loop.create_task(self.timeout_handler(call))
+
+            safe_msg = f"Connected! Say hi to the people on the other side!\nRemember, you can report problematic users: Click on three dots -> Apps -> Report DiscordPhone Message. Or, reply to the problematic message with `!!report <reason>`.\n-# Dopamine - a Dopamine Studios product. Providing the premium experience without the paywalls. [Click here](<https://discord.com/oauth2/authorize?client_id=1411266382380924938>) to invite."
+
+            await chan_a.send(f"{partner_user.mention} {safe_msg}")
+            await chan_b.send(f"{user.mention} {safe_msg}")
+
+            log_chan_id = self.settings_cache.get("log_channel")
+            log_channel = self.bot.get_channel(log_chan_id) if log_chan_id else None
+            if log_channel:
+                await log_channel.send(
+                    f" [CONNECT] Connected channel {channel.id} to {partner_chan_id}")
+            return True
+
+
+        return False
+
     async def increment_stat(self, table: str, id_: int, field: str):
-        """Write-through cache: Updates memory first, then queues a DB update task."""
         cache = self.users_cache if table == "users" else self.guilds_cache
         if id_ not in cache:
             cache[id_] = {"reported": 0, "created": 0, "warned": 0}
@@ -227,6 +286,33 @@ class DiscordPhone(commands.Cog):
                 ON CONFLICT(id) DO UPDATE SET {field} = ?
             """, (id_, new_val))
             await conn.commit()
+
+    async def download_image(self, url: str) -> bytes or None:
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(url) as resp:
+                    if resp.status == 200:
+                        return await resp.read()
+            except Exception as e:
+                print(f"Error downloading image for compression: {e}")
+        return None
+
+    def compress_image(self, data: bytes) -> io.BytesIO:
+        try:
+            image = pyvips.Image.new_from_buffer(data, "")
+
+            max_dim = 1000
+            scale = min(max_dim / image.width, max_dim / image.height)
+
+            if scale < 1:
+                image = image.resize(scale)
+
+            buffer = image.write_to_buffer(".jpg[Q=60,optimize_coding=True,strip=True]")
+
+            return io.BytesIO(buffer)
+        except Exception as e:
+            print(f"Pyvips compression error: {e}")
+            return io.BytesIO(data)
 
     async def get_webhook(self, channel: discord.TextChannel) -> discord.Webhook:
         webhooks = await channel.webhooks()
@@ -257,6 +343,14 @@ class DiscordPhone(commands.Cog):
         if message.author.bot or message.channel.id not in self.active_calls:
             return
 
+        prefix = await self.bot.get_prefix(message)
+        if isinstance(prefix, str):
+            if message.content.startswith(prefix):
+                return
+        elif isinstance(prefix, list):
+            if any(message.content.startswith(p) for p in prefix):
+                return
+
         call = self.active_calls[message.channel.id]
         peer_channel_id = call.chan_b if call.chan_a == message.channel.id else call.chan_a
         peer_channel = self.bot.get_channel(peer_channel_id) or await self.bot.fetch_channel(peer_channel_id)
@@ -275,16 +369,37 @@ class DiscordPhone(commands.Cog):
         embeds = []
         if message.reference and message.reference.resolved:
             ref = message.reference.resolved
-            emb = discord.Embed(description=ref.content)
-            emb.set_author(
-                name=f"Replying to {ref.author.display_name}",
-                icon_url=ref.author.display_avatar.url if ref.author.display_avatar else None
-            )
-            embeds.append(emb)
+            if isinstance(ref, discord.Message):
+                emb = discord.Embed(description=ref.content)
+                emb.set_author(
+                    name=f"Replying to {ref.author.display_name}",
+                    icon_url=ref.author.display_avatar.url if ref.author.display_avatar else None
+                )
 
-        files = []
+                if ref.attachments:
+                    image_att = next(
+                        (a for a in ref.attachments if a.content_type and a.content_type.startswith('image')), None)
+                    if image_att:
+                        emb.set_image(url=image_att.url)
+
+                elif ref.embeds:
+                    image_embed = next((e for e in ref.embeds if e.image or e.thumbnail), None)
+                    if image_embed:
+                        img_url = image_embed.image.url if image_embed.image else image_embed.thumbnail.url
+                        emb.set_image(url=img_url)
+
+                embeds.append(emb)
+
+        files_to_forward = []
+        attachments_to_process = []
         for att in message.attachments:
-            files.append(discord.File(io.BytesIO(await att.read()), filename=att.filename))
+            is_image = att.content_type and att.content_type.startswith("image")
+
+            att_data = await att.read()
+            files_to_forward.append(discord.File(io.BytesIO(att_data), filename=att.filename))
+
+            if is_image:
+                attachments_to_process.append((att.filename, att_data))
 
         wh = await self.get_webhook(peer_channel)
         if not wh:
@@ -295,20 +410,41 @@ class DiscordPhone(commands.Cog):
             username=message.author.display_name,
             avatar_url=message.author.display_avatar.url if message.author.display_avatar else None,
             embeds=embeds,
-            files=files,
+            files=files_to_forward,
             allowed_mentions=discord.AllowedMentions.none(),
             wait=True
         )
 
-        msg_data = {
-            "content": content,
-            "author_name": message.author.display_name,
-            "author_id": message.author.id,
-            "guild_id": message.guild.id,
-            "timestamp": message.created_at.strftime("%Y-%m-%d %H:%M:%S")
-        }
-        call.history.append(msg_data)
-        self.message_map[sent_msg.id] = msg_data
+        async def process_and_store_history():
+            compressed_images = []
+
+            for filename, data in attachments_to_process:
+                loop = asyncio.get_running_loop()
+                compressed_io = await loop.run_in_executor(None, self.compress_image, data)
+                if compressed_io:
+                    new_filename = f"cmp_{filename.rsplit('.', 1)[0]}.jpg"
+                    compressed_images.append((new_filename, compressed_io.getvalue()))
+
+            for sticker in message.stickers:
+                sticker_data = await self.download_image(sticker.url)
+                if sticker_data:
+                    loop = asyncio.get_running_loop()
+                    compressed_io = await loop.run_in_executor(None, self.compress_image, sticker_data)
+                    if compressed_io:
+                        compressed_images.append((f"sticker_{sticker.id}.jpg", compressed_io.getvalue()))
+
+            msg_data = {
+                "content": content,
+                "author_name": message.author.display_name,
+                "author_id": message.author.id,
+                "guild_id": message.guild.id,
+                "timestamp": message.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                "compressed_attachments": compressed_images
+            }
+            call.history.append(msg_data)
+            self.message_map[sent_msg.id] = msg_data
+
+        self.bot.loop.create_task(process_and_store_history())
 
     @commands.Cog.listener()
     async def on_typing(self, channel: discord.abc.Messageable, user: discord.User, when):
@@ -331,49 +467,64 @@ class DiscordPhone(commands.Cog):
 
     dp_group = app_commands.Group(name="discordphone", description="Discordphone core commands")
 
-    @dp_group.command(name="start", description="Start a Discordphone call")
+    @dp_group.command(name="start", description="Start a DiscordPhone call")
     async def start(self, interaction: discord.Interaction):
         if interaction.channel.id in self.active_calls:
             return await interaction.response.send_message("This channel is already in a call!", ephemeral=True)
 
-        if self.waiting_channel and self.waiting_channel.id == interaction.channel.id:
-            return await interaction.response.send_message("This channel is already in the matchmaking queue!",
-                                                           ephemeral=True)
+        if any(c_id == interaction.channel.id for c_id, _ in self.queue):
+            return await interaction.response.send_message("This channel is already in the matchmaking queue!", ephemeral=True)
 
-        await interaction.response.send_message("<a:loading:1475121732108025929> You have successfully joined the queue! Waiting for another user...", ephemeral=False)
+        matched = await self.try_match(interaction.channel, interaction.user)
+        rules_str = "[DiscordPhone Rules](<https://docs.google.com/document/d/1ZuoKDQCrLMcY72PLW9kzTM7a1sS0y6mzyF_eNwV3low/edit?tab=t.0>)"
+        tos_str = "[Terms of Service](https://docs.google.com/document/d/1kUC1P9aRNAwJD-HiP5v8HO-xowRiUGEbOZ-DfvOR2Tk/edit?tab=t.0)"
+        if matched:
+            await interaction.response.send_message(f"<a:loading:1475121732108025929> You have successfully joined the queue! Waiting for another user...\n-# By continuing, you agree to the {rules_str} and {tos_str}. If you don't agree, stop using the bot.")
+        else:
+            self.queue.append((interaction.channel.id, interaction.user))
+            await interaction.response.send_message(
+                f"<a:loading:1475121732108025929> You have successfully joined the queue! Waiting for another user...\n\nTo leave the queue, use `!!hangup` or `/discordphone hangup`.\n-# By continuing, you agree to the {rules_str} and {tos_str}. If you don't agree, stop using the bot.",
+                ephemeral=False)
 
         log_chan_id = self.settings_cache.get("log_channel")
         log_channel = self.bot.get_channel(log_chan_id) if log_chan_id else None
         if log_channel:
-            await log_channel.send(f"🎙️ Channel {interaction.channel.id} from {interaction.guild.name} joined queue.")
+            await log_channel.send(f" [QUEUE] Channel {interaction.channel.id} from {interaction.guild.name} joined queue.")
 
-        if self.waiting_channel is None:
-            self.waiting_channel = interaction.channel
-            self.waiting_user = interaction.user
-        else:
-            chan_a = self.waiting_channel
-            user_a = self.waiting_user
-            chan_b = interaction.channel
-            user_b = interaction.user
+    @dp_group.command(name="skip", description="Skip the current user")
+    async def skip(self, interaction: discord.Interaction):
+        now = time.time()
+        user_skips = self.skip_cooldowns.get(interaction.user.id, [])
+        user_skips = [t for t in user_skips if now - t < 300]
 
-            self.waiting_channel = None
-            self.waiting_user = None
+        if len(user_skips) >= 2:
+            return await interaction.response.send_message("You're skipping too fast! Please wait a few minutes.",
+                                                           ephemeral=True)
 
-            call = CallSession(chan_a.id, chan_b.id, user_a, user_b)
-            self.active_calls[chan_a.id] = call
-            self.active_calls[chan_b.id] = call
-            call.timeout_task = self.bot.loop.create_task(self.timeout_handler(call))
+        if interaction.channel.id not in self.active_calls:
+            return await interaction.response.send_message("You are not in a call.", ephemeral=True)
 
-            rules_str = "[DiscordPhone Rules](https://docs.google.com/document/d/1ZuoKDQCrLMcY72PLW9kzTM7a1sS0y6mzyF_eNwV3low/edit?tab=t.0)"
-            safe_msg = f"Connected! Please stay safe, and remember you can report problematic messages via right-clicking the message -> Apps -> 'Report Message' or using `/discordphone report`. By continuing, you agree to the {rules_str}. If you don't agree, stop using the bot.\n\n-# Dopamine - a Dopamine Studios product. Providing the premium experience without the paywalls. Invite by clicking [here](<https://top.gg/bot/1411266382380924938/invite>)."
+        call = self.active_calls[interaction.channel.id]
 
-            await chan_a.send(f"{user_a.mention} {safe_msg}")
-            await chan_b.send(f"{user_b.mention} {safe_msg}")
+        user_a = call.user_a
+        user_b = call.user_b
+        chan_a_id = call.chan_a
+        chan_b_id = call.chan_b
 
-            if log_channel:
-                await log_channel.send(f"📞 Connected channel {chan_a.id} with {chan_b.id}.")
+        self.last_partner[user_a.id] = user_b.id
+        self.last_partner[user_b.id] = user_a.id
 
-    @dp_group.command(name="hangup", description="Hangup the active Discordphone call")
+        user_skips.append(now)
+        self.skip_cooldowns[interaction.user.id] = user_skips
+
+        await interaction.response.send_message("Skipping this user...")
+        await self.end_call(call, f"{interaction.author.display_name} has skipped the call.\n\n<a:loading:1475121732108025929> Re-joining queue...\n-# To leave the queue, use `!!hangup` or `/discordphone hangup`.")
+
+        for c_id, u_obj in [(chan_a_id, user_a), (chan_b_id, user_b)]:
+            chan = self.bot.get_channel(c_id) or await self.bot.fetch_channel(c_id)
+            if not await self.try_match(chan, u_obj):
+                self.queue.append((c_id, u_obj))
+    @dp_group.command(name="hangup", description="Hangup the active DiscordPhone call")
     async def hangup(self, interaction: discord.Interaction):
         if self.waiting_channel and self.waiting_channel.id == interaction.channel.id:
             self.waiting_channel = None
@@ -387,38 +538,53 @@ class DiscordPhone(commands.Cog):
         await interaction.response.send_message("Hanging up...")
         await self.end_call(call, f"Call disconnected by {interaction.user.display_name}.")
 
-    @dp_group.command(name="report", description="Report the current conversation")
-    async def report_slash(self, interaction: discord.Interaction):
-        if interaction.channel.id not in self.active_calls:
-            return await interaction.response.send_message("No active call to report.", ephemeral=True)
+    @commands.command(name="report")
+    async def report_prefix(self, ctx: commands.Context, *, reason: str = None):
+        if ctx.channel.id not in self.active_calls:
+            return await ctx.send("No active call to report.")
+        if reason is None:
+            return await ctx.send("You need to provide a reason for the report!")
+        if not ctx.message.reference:
+            return await ctx.send("Please **reply** to the specific message you want to report.")
 
-        call = self.active_calls[interaction.channel.id]
-        msg_data = next((m for m in reversed(call.history) if m['author_id'] != interaction.user.id), None)
+        call = self.active_calls[ctx.channel.id]
+        replied_msg_id = ctx.message.reference.message_id
+        msg_data = self.message_map.get(replied_msg_id)
 
         if not msg_data:
-            return await interaction.response.send_message("No messages from the other side yet.", ephemeral=True)
+            return await ctx.send("Could not find the data for that message. Are you trying to report a message that is too old, or a message sent by a person in your own server? This command only supports reporting messages sent by the opposite side.", delete_after=30)
 
-        await interaction.response.send_modal(ReportModal(self, msg_data, call))
+        if msg_data['author_id'] == ctx.author.id:
+            return await ctx.send("You cannot report yourself.")
+
+        await self.process_report(ctx, reason, msg_data, call)
+        await ctx.send("Thank you for your report and for keeping the community safe! Your report will be processed by a moderator at Dopamine Studios shortly and appropriate action will be taken.", delete_after=10)
 
     async def report_context(self, interaction: discord.Interaction, message: discord.Message):
         if interaction.channel.id not in self.active_calls:
             return await interaction.response.send_message("No active call.", ephemeral=True)
 
         call = self.active_calls[interaction.channel.id]
+
         msg_data = self.message_map.get(message.id)
 
         if not msg_data:
-            msg_data = next((m for m in reversed(call.history) if m['author_id'] != interaction.user.id), None)
+            msg_data = next((m for m in reversed(call.history) if m.get('content') == message.content), None)
 
-        if not msg_data:
-            return await interaction.response.send_message("Could not identify the message source.", ephemeral=True)
+        if not msg_data or msg_data['author_id'] == interaction.user.id:
+            return await interaction.response.send_message(
+                "You can't report yourself! If you believe this is an error or if you *really badly* want to report yourself, please join the [support server](<https://discord.gg/Ztm9pKc8GM>).", ephemeral=True)
 
         await interaction.response.send_modal(ReportModal(self, msg_data, call))
 
-    async def process_report(self, interaction: discord.Interaction, reason: str, target_msg: dict,
-                             session: CallSession):
-        reporter_id = interaction.user.id
-        reporter_guild_id = interaction.guild.id
+    async def process_report(self, interaction, reason: str, target_msg: dict, session: CallSession):
+        if isinstance(interaction, discord.Interaction):
+            reporter_id = interaction.user.id
+            reporter_guild_id = interaction.guild.id
+        else:
+            reporter_id = interaction.author.id
+            reporter_guild_id = interaction.guild.id
+
         author_id = target_msg['author_id']
         author_guild_id = target_msg['guild_id']
 
@@ -430,26 +596,67 @@ class DiscordPhone(commands.Cog):
         author_reported = self.users_cache[author_id]["reported"]
         ordinal = get_ordinal(author_reported)
 
+        author_guild = self.bot.get_guild(author_guild_id) or await self.bot.fetch_guild(author_guild_id)
+        reporter = self.bot.get_user(reporter_id) or await self.bot.fetch_user(reporter_id)
         embed = discord.Embed(
-            title=f"{target_msg['author_name']} from {author_guild_id} has been reported for the #{ordinal} time",
+            title=f"{target_msg['author_name']} from {author_guild.name} has been reported for the #{ordinal} time. Report made by {reporter.display_name}",
             color=discord.Color.red(),
             description=(
+                f"### ➤ Reason for Report: {reason}\n"
                 f"**Warns for Author:** {self.users_cache[author_id]['warned']}\n"
                 f"**Reports created by Reporter:** {self.users_cache[reporter_id]['created']}\n"
                 f"**Warns for Reporter:** {self.users_cache[reporter_id]['warned']}\n\n"
-                f"**Reason for Report:** {reason}"
             )
         )
-        embed.add_field(name="Reported User ID", value=str(author_id))
-        embed.add_field(name="Reported Guild ID", value=str(author_guild_id))
-        embed.add_field(name="Reporter User ID", value=str(reporter_id))
-        embed.add_field(name="Reporter Guild ID", value=str(reporter_guild_id))
+        embed.add_field(name="Reported User ID", value=str(author_id), inline=True)
+        embed.add_field(name="Reported Guild ID", value=str(author_guild_id), inline=True)
+        embed.add_field(name="Reporter User ID", value=str(reporter_id), inline=True)
+        embed.add_field(name="Reporter Guild ID", value=str(reporter_guild_id), inline=True)
 
-        content = ""
+        chat_log_content = ""
         for m in session.history:
-            content += f"[{m['timestamp']}] {m['author_name']} ({m['author_id']}) from {m['guild_id']}: {m['content']}\n"
+            chat_log_content += f"[{m['timestamp']}] {m['author_name']} ({m['author_id']}) from {m['guild_id']}: {m['content']}\n"
 
-        file = discord.File(io.BytesIO(content.encode('utf-8')), filename="report_context.txt")
+        file = discord.File(io.BytesIO(chat_log_content.encode('utf-8')), filename="report_context.txt")
+
+        perm_storage_chan = self.bot.get_channel(PERM_STORAGE_CHANNEL_ID)
+        attachments_field_content = ""
+
+        if perm_storage_chan:
+            current_batch_files = []
+
+            storage_header = f"Report Case Image Evidence\n**Reported User: {author_id} (Reporter: {reporter_id})**\n"
+
+            for m in session.history:
+                if "compressed_attachments" in m and m["compressed_attachments"]:
+                    author_mention = f"<@{m['author_id']}>"
+
+                    for filename, img_bytes in m["compressed_attachments"]:
+                        discord_file = discord.File(io.BytesIO(img_bytes), filename=filename)
+                        current_batch_files.append(discord_file)
+
+                        if len(current_batch_files) == 10:
+                            storage_msg = await perm_storage_chan.send(content=storage_header,
+                                                                       files=current_batch_files)
+                            for i, att in enumerate(storage_msg.attachments):
+                                attachments_field_content += f"[{att.filename}]({storage_msg.jump_url}) (sent by {author_mention})\n"
+                            current_batch_files = []
+                            storage_header = ""
+
+            if current_batch_files:
+                storage_msg = await perm_storage_chan.send(content=storage_header, files=current_batch_files)
+                for att in storage_msg.attachments:
+                    attachments_field_content += f"[{att.filename}]({storage_msg.jump_url}) (sent by {author_mention})\n"
+        else:
+            print(f"Error: Permanent storage channel {PERM_STORAGE_CHANNEL_ID} not found.")
+            attachments_field_content = "Error: Could not access permanent storage channel."
+
+        if attachments_field_content:
+            embed.add_field(name="Attachments (Last 21 Msgs)", value=attachments_field_content,
+                            inline=False)
+        elif perm_storage_chan:
+            embed.add_field(name="Attachments", value="No images.",
+                            inline=False)
 
         log_chan_id = self.settings_cache.get("log_channel")
         if log_chan_id:
@@ -472,6 +679,96 @@ class DiscordPhone(commands.Cog):
 
         await interaction.response.send_message("Log and Reports channel has been set to this channel.", ephemeral=True)
 
+        # --- Prefix Equivalents ---
+
+        @commands.command(name="start")
+        async def start_prefix(self, ctx: commands.Context):
+            if ctx.channel.id in self.active_calls:
+                return await ctx.send("This channel is already in a call!")
+
+            if any(c_id == ctx.channel.id for c_id, _ in self.queue):
+                return await ctx.send("This channel is already in the matchmaking queue!")
+
+            # Logic for matchmaking
+            matched = await self.try_match(ctx.channel, ctx.author)
+            rules_str = "[DiscordPhone Rules](<https://docs.google.com/document/d/1ZuoKDQCrLMcY72PLW9kzTM7a1sS0y6mzyF_eNwV3low/edit?tab=t.0>)"
+            tos_str = "[Terms of Service](https://docs.google.com/document/d/1kUC1P9aRNAwJD-HiP5v8HO-xowRiUGEbOZ-DfvOR2Tk/edit?tab=t.0)"
+            if matched:
+                await ctx.send(f"<a:loading:1475121732108025929> You have successfully joined the queue! Waiting for another user...\n-# By continuing, you agree to the {rules_str} and {tos_str}. If you don't agree, stop using the bot.")
+            else:
+                self.queue.append((ctx.channel.id, ctx.author))
+                await ctx.send(
+                    f"<a:loading:1475121732108025929> You have successfully joined the queue! Waiting for another user...\n\nTo leave the queue, use `!!hangup` or `/discordphone hangup`.\n-# By continuing, you agree to the {rules_str} and {tos_str}. If you don't agree, stop using the bot.")
+
+            # Sync with log channel
+            log_chan_id = self.settings_cache.get("log_channel")
+            log_channel = self.bot.get_channel(log_chan_id) if log_chan_id else None
+            if log_channel:
+                await log_channel.send(f" [QUEUE] Channel {ctx.channel.id} from {ctx.guild.name} joined queue.")
+
+        @commands.command(name="skip")
+        async def skip_prefix(self, ctx: commands.Context):
+            now = time.time()
+            user_skips = self.skip_cooldowns.get(ctx.author.id, [])
+            user_skips = [t for t in user_skips if now - t < 300]
+
+            if len(user_skips) >= 2:
+                return await ctx.send("You're skipping too fast! Please wait a few minutes.")
+
+            if ctx.channel.id not in self.active_calls:
+                return await ctx.send("You are not in a call.")
+
+            call = self.active_calls[ctx.channel.id]
+
+            # Cooldown & Partner tracking
+            self.last_partner[call.user_a.id] = call.user_b.id
+            self.last_partner[call.user_b.id] = call.user_a.id
+            user_skips.append(now)
+            self.skip_cooldowns[ctx.author.id] = user_skips
+
+            await ctx.send("Skipping this user...")
+            await self.end_call(call,
+                                f"{ctx.author.display_name} has skipped the call.\n\n<a:loading:1475121732108025929> Re-joining queue...\n-# To leave the queue, use `!!hangup` or `/discordphone hangup`.")
+
+            # Re-queue both parties
+            for c_id, u_obj in [(call.chan_a, call.user_a), (call.chan_b, call.user_b)]:
+                chan = self.bot.get_channel(c_id) or await self.bot.fetch_channel(c_id)
+                if not await self.try_match(chan, u_obj):
+                    self.queue.append((c_id, u_obj))
+
+        @commands.command(name="hangup")
+        async def hangup_prefix(self, ctx: commands.Context):
+            # Check if in queue
+            if any(c_id == ctx.channel.id for c_id, _ in self.queue):
+                self.queue = [(c_id, u_obj) for c_id, u_obj in self.queue if c_id != ctx.channel.id]
+                return await ctx.send("Removed from queue.")
+
+            if ctx.channel.id not in self.active_calls:
+                return await ctx.send("You are not currently in a call.")
+
+            call = self.active_calls[ctx.channel.id]
+            await ctx.send("Hanging up...")
+            await self.end_call(call, f"Call disconnected by {ctx.author.display_name}.")
+
+
+class CustomWarnModal(discord.ui.Modal, title='Warn Custom User'):
+    user_id = discord.ui.TextInput(label='User ID', placeholder='Paste the Discord User ID here...')
+    reason = discord.ui.TextInput(label='Reason/Warning Message', style=discord.TextStyle.paragraph)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            target_id = int(self.user_id.value)
+            cog = interaction.client.get_cog("DiscordPhone")
+            if cog:
+                await cog.increment_stat("users", target_id, "warned")
+                user = interaction.client.get_user(target_id) or await interaction.client.fetch_user(target_id)
+                if user:
+                    await user.send(f"Admin Warning: {self.reason.value}")
+                    await interaction.response.send_message(f"Warned <@{target_id}> and logged stat.", ephemeral=True)
+                else:
+                    await interaction.response.send_message("User not found, but stat was updated.", ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"Error: {e}", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(DiscordPhone(bot))

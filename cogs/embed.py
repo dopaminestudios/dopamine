@@ -835,18 +835,18 @@ class ViewChannelSelect(discord.ui.View):
         self.add_item(self.select)
 
     async def select_channel(self, interaction: discord.Interaction):
-        channel_id = self.select.values[0]
+        channel_id = self.select.values[0].id
         ch = self.cog.bot.get_channel(channel_id) or await interaction.guild.fetch_channel(channel_id)
         if ch is None or not isinstance(ch, discord.abc.Messageable):
             return await interaction.response.send_message(
-                "I couldn't access that channel or it's not a text channel.",
+                "I can't access that channel or it's not a text channel.",
                 ephemeral=True
             )
         embed_obj = self.cog.build_embed_from_draft(self.draft)
         await ch.send(content=self.draft.content or None, embed=embed_obj)
 
         await interaction.response.edit_message(
-            content=f"Embed sent to {ch.mention}.",
+            content=f"Embed sent to {ch.mention} successfully.",
             embed=None,
             view=None,
         )
@@ -990,12 +990,23 @@ class EmbedFieldModal(discord.ui.Modal):
         elif trait == "author_icon_url":
             current_value = self.draft.author_icon_url
 
-        self.input_field = discord.ui.TextInput(
-            label="Enter value",
-                       placeholder="Type here...",
-            default=current_value,
-            required=False,
-        )
+        if trait == "description":
+            self.input_field = discord.ui.TextInput(
+                label="Enter description",
+                placeholder="Type here...",
+                style=discord.TextStyle.long,
+                default=current_value,
+                required=False,
+                min_length=1,
+                max_length=4000
+            )
+        else:
+            self.input_field = discord.ui.TextInput(
+                label=f"Enter value",
+                           placeholder="Type here...",
+                default=current_value,
+                required=False,
+            )
         self.add_item(self.input_field)
 
     async def on_submit(self, interaction: discord.Interaction):

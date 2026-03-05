@@ -9,7 +9,8 @@ import aiosqlite
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
-
+import pronouncing
+import syllapy
 from config import HDDB_PATH, HWDDB_PATH
 from dopamineframework import mod_check
 
@@ -135,15 +136,13 @@ class HaikuDetector(commands.Cog):
                 if message.id in self._recent_processed_messages:
                     continue
 
-                message_content = await self.remove_urls(message.content)
-                if not message_content.strip():
-                    continue
+                word_data = await self.process_content_to_syllables(message)
 
-                syllable_count = await self.count_message_syllables(message_content)
+                formatted_haiku = await self.format_haiku(word_data)
 
-                if syllable_count == 17:
+                if formatted_haiku:
                     already_replied = False
-                    async for reply in message.channel.history(limit=50, after=message.created_at):
+                    async for reply in message.channel.history(limit=5, after=message.created_at):
                         if (reply.author == self.bot.user and
                                 reply.reference and
                                 reply.reference.message_id == message.id):
@@ -151,35 +150,46 @@ class HaikuDetector(commands.Cog):
                             break
 
                     if not already_replied:
-                        formatted_haiku = await self.format_haiku(message_content)
                         embed = discord.Embed(
-                            description=f"\n_{formatted_haiku}_\n\n— {message.author.display_name}\n\n"
+                            description=f"\n*{formatted_haiku}*\n\n— {message.author.display_name}"
                         )
-                        embed.set_footer(
-                            text="I detect Haikus. And sometimes, successfully. To disable, use /haiku detection disable."
-                        )
+                        embed.set_footer(text="I detect Haikus. And sometimes, successfully. To disable, use /haiku detection disable.")
                         await message.reply(embed=embed)
                         self._recent_processed_messages.append(message.id)
+
             except Exception as e:
                 print(f"Error in haiku worker: {e}")
             finally:
                 self.haiku_queue.task_done()
 
     async def get_word_syllables(self, word: str) -> int:
-        word = word.lower().strip().strip(".:;?!")
+        if word.isupper() or re.match(r'^([A-Z]\.)+[A-Z]?$', word):
+            return len(re.sub(r'[^A-Z]', '', word.upper()))
+
+        word = word.lower().strip().strip(".:;?!\"'()")
+        if not word:
+            return 0
 
         cached = self.haiku_word_cache.get(word)
         if cached is not None:
             return cached
 
-        if not word or len(word) == 0:
-            return 0
+        phones = pronouncing.phones_for_word(word)
+        if phones:
+            return pronouncing.syllable_count(phones[0])
 
-        if len(word) <= 3:
-            return 1
+        syll_count = syllapy.count(word)
+        if syll_count > 0 and len(word) < 10:
+            return syll_count
 
         count = 0
         vowels = "aeiouy"
+
+        if word.endswith("ed"):
+            if len(word) > 3 and word[-3] in "td":
+                pass
+            else:
+                word = word[:-2] + "d"
 
         if word.endswith("e"):
             if not (word.endswith("le") and len(word) > 2 and word[-3] not in vowels):
@@ -188,23 +198,14 @@ class HaikuDetector(commands.Cog):
         vowel_runs = re.findall(r'[aeiouy]+', word)
         for run in vowel_runs:
             count += 1
-
             if len(run) > 1:
-                if run in ["ia", "eo", "io", "uo", "oa", "ua"]:
+                if run in ["ia", "eo", "io", "uo", "oa", "ua", "au", "ou", "ai"]:
                     count += 1
 
-        if word.endswith(("ism", "ier", "ia", "ian", "uity", "ium")):
+        if word.endswith(("ism", "ier", "ian", "uity", "ium", "ogy", "ally")):
             count += 1
 
-            if len(word) > 3 and word[-3] not in "td":
-                count -= 1
-
-        if word.startswith("y") and len(word) > 1 and word[1] in vowels:
-            count -= 1
-
-        final_count = max(1, count)
-
-        return final_count
+        return max(1, count)
 
     async def remove_urls(self, text: str) -> str:
         return re.sub(r'https?://\S+|www\.\S+', '', text)
@@ -225,53 +226,72 @@ class HaikuDetector(commands.Cog):
                 total += await self.get_word_syllables(word)
         return total
 
-    async def format_haiku(self, message: str) -> str:
-        message_without_urls = await self.remove_urls(message)
+    async def process_content_to_syllables(self, message: discord.Message) -> List[Tuple[str, int]]:
+        content = message.content
 
-        temp_message = message_without_urls
-        for separator in ['-', '_', '–', '—']:
-            temp_message = temp_message.replace(separator, ' ')
+        symbol_map = {
+            "$": " dollar ",
+            "&": " and ",
+            "@": " at ",
+            "%": " percent ",
+            "+": " plus "
+        }
+        for symbol, replacement in symbol_map.items():
+            content = content.replace(symbol, replacement)
 
-        clean_for_words = re.sub(r'[*,"&@!()$#.:;{}[\]|\\/=+~`]', ' ', temp_message)
-        words_with_apostrophes = re.sub(r'\s+', ' ', clean_for_words).strip().split()
+        mention_pattern = r'<@!?(\d+)>'
+        for match in re.finditer(mention_pattern, content):
+            user_id = int(match.group(1))
+            member = message.guild.get_member(user_id)
+            display_name = member.display_name if member else "user"
+            content = content.replace(match.group(0), display_name)
 
-        if len(words_with_apostrophes) < 3:
-            return message
+        content = re.sub(r'<a?:\w+:\d+>', '', content)
+        content = await self.remove_urls(content)
 
-        line1_words, line2_words, line3_words = [], [], []
-        line1_syllables, line2_syllables, line3_syllables = 0, 0, 0
+        clean_content = re.sub(r'[-_–—]', ' ', content)
+        words = clean_content.split()
 
-        for word in words_with_apostrophes:
-            if not word:
-                continue
-
-            syllables = await self.get_word_syllables(word)
-
-            if line1_syllables < 5:
-                line1_words.append(word)
-                line1_syllables += syllables
-            elif line2_syllables < 7:
-                line2_words.append(word)
-                line2_syllables += syllables
+        word_data = []
+        for word in words:
+            if re.match(r'^([A-Za-z]\.)+[A-Za-z]?$', word):
+                clean_word = word
             else:
-                line3_words.append(word)
-                line3_syllables += syllables
+                clean_word = re.sub(r'[^\w\s\']', '', word)
 
-        def capitalize_first(words_list):
-            if not words_list:
-                return ""
-            text = ' '.join(words_list)
-            if text:
-                return text[0].upper() + text[1:]
-            return text
+            if clean_word:
+                count = await self.get_word_syllables(clean_word)
+                word_data.append((word, count))
 
-        haiku_lines = [
-            capitalize_first(line1_words),
-            capitalize_first(line2_words),
-            capitalize_first(line3_words)
-        ]
+        return word_data
 
-        return '\n'.join(haiku_lines)
+    async def format_haiku(self, word_data: List[Tuple[str, int]]) -> Optional[str]:
+        lines = [[], [], []]
+        targets = [5, 7, 5]
+        current_line = 0
+        current_sum = 0
+
+        for word, count in word_data:
+            if current_line > 2:
+                return None
+
+            current_sum += count
+            lines[current_line].append(word)
+
+            if current_sum == targets[current_line]:
+                current_line += 1
+                current_sum = 0
+            elif current_sum > targets[current_line]:
+                return None
+
+        if current_line == 3 and current_sum == 0:
+            formatted_lines = []
+            for line in lines:
+                text = " ".join(line)
+                formatted_lines.append(text[0].upper() + text[1:])
+            return "\n".join(formatted_lines)
+
+        return None
 
 
     @commands.Cog.listener()

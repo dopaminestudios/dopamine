@@ -2,7 +2,8 @@ import importlib
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
-from dopamineframework import mod_check
+from dopamineframework import mod_check, ViewPaginator
+from typing import List, Any
 import VERSION
 import time
 import psutil
@@ -449,7 +450,7 @@ class Dblc(commands.Cog):
         )
 
         if self.bot.user.avatar:
-            embed.set_image(url=self.bot.user.avatar.url)
+            embed.set_thumbnail(url=self.bot.user.avatar.url)
 
 
         await interaction.response.send_message(embed=embed)
@@ -465,5 +466,35 @@ class Dblc(commands.Cog):
 
         await interaction.response.send_message(content="Vote for Dopamine today by clicking the button below!",
                                                 view=view)
+
+
+    @app_commands.command(name="lis", description="List all servers the bot is in.")
+    async def ls(self, interaction: discord.Interaction):
+        if not await self.bot.is_owner(interaction.user):
+            await interaction.response.send_message(":shushing_face:", ephemeral=True)
+            return
+
+        guilds = self.bot.guilds
+        if not guilds:
+            await interaction.response.send_message("I am not in any servers!", ephemeral=True)
+            return
+
+        data = [
+            f"**{guild.name}** (ID: `{guild.id}`) - {guild.member_count} members"
+            for guild in guilds
+        ]
+
+        view = ViewPaginator(
+            title=f"Server List ({len(guilds)} total)",
+            data=data,
+            per_page=10,
+            color=discord.Color(0x944ae8)
+        )
+
+        await interaction.response.send_message(
+            embed=view.format_embed(),
+            view=view,
+            ephemeral=True
+        )
 async def setup(bot):
     await bot.add_cog(Dblc(bot))

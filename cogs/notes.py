@@ -322,24 +322,20 @@ async def note_list(interaction: discord.Interaction):
         )
         return await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    view = ViewPaginator(data=user_notes, per_page=10)
+    formatted_notes = [f"- {name}" for name in user_notes]
 
-    def get_page_embed():
-        current_notes = view.get_current_page_data()
-        embed = discord.Embed(
-            title="Your Notes",
-            description="\n".join(f"- {name}" for name in current_notes),
-            color=discord.Color(0x944ae8)
-        )
-        embed.set_footer(text=f"Page {view.page}/{view.total_pages} • Use /note get to retrieve")
-        return embed
+    view = ViewPaginator(
+        title="Your Notes (Use /note get to see content)",
+        data=formatted_notes,
+        per_page=10,
+        color=discord.Color(0x944ae8)
+    )
 
-    async def custom_update_view(interaction: discord.Interaction):
-        await interaction.response.edit_message(embed=get_page_embed(), view=view)
-
-    view.update_view = custom_update_view
-
-    await interaction.response.send_message(embed=get_page_embed(), view=view, ephemeral=True)
+    await interaction.response.send_message(
+        embed=view.format_embed(),
+        view=view,
+        ephemeral=True
+    )
 
 
 @note_group.command(name="delete", description="Delete a note by name")

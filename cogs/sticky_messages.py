@@ -122,9 +122,9 @@ class EditPage(PrivateLayoutView):
         details = (
             f"**Channel:** <#{p['channel_id']}>\n"
             f"**Color:** `{p.get('embed_color') or 'Default'}`\n"
-            f"**Duration:** `{p.get('conversation_duration', 10)}s`\n"
+            f"**Conversation Duration:** `{p.get('conversation_duration', 10)}s`\n"
             f"**Include Bots:** `{'Yes' if bots_enabled else 'No'}`\n"
-            f"**Description:** {p.get('description') or '*None*'}"
+            f"**Description:** ```{p.get('description') or '*None*'}```"
         )
         container.add_item(discord.ui.TextDisplay(details))
         container.add_item(discord.ui.Separator())
@@ -136,7 +136,7 @@ class EditPage(PrivateLayoutView):
         btn_edit_channel.callback = self.edit_channel_callback
         btn_delete = discord.ui.Button(label="Delete", style=discord.ButtonStyle.danger)
         btn_delete.callback = self.delete_callback
-        btn_duration = discord.ui.Button(label="Edit Duration", style=discord.ButtonStyle.secondary)
+        btn_duration = discord.ui.Button(label="Edit Conversation Duration", style=discord.ButtonStyle.secondary)
         btn_duration.callback = self.edit_duration_callback
         btn_bots = discord.ui.Button(label=f"{'Disable' if bots_enabled else 'Enable'} Include Bots",
                                      style=discord.ButtonStyle.secondary if bots_enabled else discord.ButtonStyle.primary)
