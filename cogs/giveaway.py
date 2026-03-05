@@ -331,7 +331,7 @@ class ParticipantPaginator(discord.ui.View):
         total_count = len(self.processed_participants)
 
         embed = discord.Embed(
-            title=f"<:dopamine:1445805701355012279> Participants for **{self.prize}**",
+            title=f"<:dopamine:1479037593537613945> Participants for **{self.prize}**",
             description=mentions,
             color=discord.Color(0x944ae8)
         )
