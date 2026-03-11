@@ -565,7 +565,7 @@ class Leaves(commands.Cog):
 
             return base.composite2(text_img, 'over', x=x_pos, y=y_pos)
 
-        base_img = draw_centered_text(base_img, line1_text, 30, 178, font_name="gg sans", weight="Bold")
+        base_img = draw_centered_text(base_img, line1_text, 25, 178, font_name="gg sans", weight="Bold")
 
         base_img = draw_centered_text(base_img, line2_text, 22, 223, font_name="gg sans Medium", weight="Normal")
 
