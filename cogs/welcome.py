@@ -668,11 +668,13 @@ class Welcome(commands.Cog):
 
         target_channel = None
         keywords = ["general", "chat", "lounge"]
+        nono = ["admin"]
         for channel in guild.text_channels:
             if any(word in channel.name.lower() for word in keywords):
-                if channel.permissions_for(guild.me).send_messages:
-                    target_channel = channel
-                    break
+                if not any(word in channel.name.lower() for word in nono):
+                    if channel.permissions_for(guild.me).send_messages:
+                        target_channel = channel
+                        break
 
         if not target_channel:
             if guild.system_channel and guild.system_channel.permissions_for(guild.me).send_messages:
