@@ -26,12 +26,14 @@ class BanningCog(commands.Cog):
 
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS banned_users (
-                    user_id INTEGER PRIMARY KEY
+                    user_id INTEGER PRIMARY KEY,
+                    reason TEXT
                 )
             """)
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS banned_guilds (
-                    guild_id INTEGER PRIMARY KEY
+                    guild_id INTEGER PRIMARY KEY,
+                    reason TEXT
                 )
             """)
             await conn.commit()
@@ -61,28 +63,28 @@ class BanningCog(commands.Cog):
         finally:
             self.db_pool.put_nowait(conn)
 
-    async def ban_user_api(self, user_id: int) -> bool:
+    async def ban_user_api(self, user_id: int, reason: str = None) -> bool:
         if user_id in self.banned_users_cache:
             return False
 
         self.banned_users_cache.add(user_id)
 
         async with self.acquire_db() as conn:
-            await conn.execute("INSERT OR IGNORE INTO banned_users (user_id) VALUES (?)", (user_id,))
+            await conn.execute("INSERT OR IGNORE INTO banned_users (user_id, reason) VALUES (?, ?)", (user_id, reason))
             await conn.commit()
         return True
 
-    async def ban_guild_api(self, guild_id: int) -> bool:
+    async def ban_guild_api(self, guild_id: int, reason: str = None) -> bool:
         if guild_id in self.banned_guilds_cache:
             return False
 
         self.banned_guilds_cache.add(guild_id)
 
         async with self.acquire_db() as conn:
-            await conn.execute("INSERT OR IGNORE INTO banned_guilds (guild_id) VALUES (?)", (guild_id,))
+            await conn.execute("INSERT OR IGNORE INTO banned_guilds (guild_id, reason) VALUES (?, ?)", (guild_id, reason))
             await conn.commit()
 
-        guild = self.bot.get_guild(guild_id)
+        guild = self.bot.get_guild(guild_id) or await self.bot.fetch_guild(guild_id)
         if guild:
             await guild.leave()
 
@@ -90,18 +92,24 @@ class BanningCog(commands.Cog):
 
     async def global_ban_check(self, interaction: discord.Interaction) -> bool:
         if interaction.guild_id and interaction.guild_id in self.banned_guilds_cache:
+            async with self.acquire_db() as db:
+                async with db.execute("SELECT reason FROM banned_guilds WHERE guild_id = ?", (interaction.guild.id,)) as cursor:
+                    row = await cursor.fetchone()
+                    reason = row[0] if row else "No reason provided."
             await interaction.response.send_message(
-                "This server is banned from using Dopamine. I will now leave the server. If you have any questions, email dopaminediscordbot@gmail.com.",
-                ephemeral=True
+                f"This server is banned from using Dopamine for the reason given below. I will now leave the server. If you have any questions, email **Dopamine Studios** at dopaminediscordbot@gmail.com.\n\n**Reason:** {reason}"
             )
             if interaction.guild:
                 await interaction.guild.leave()
             return False
 
         if interaction.user.id in self.banned_users_cache:
+            async with self.acquire_db() as db:
+                async with db.execute("SELECT reason FROM banned_users WHERE user_id = ?", (interaction.user.id,)) as cursor:
+                    row = await cursor.fetchone()
+                    reason = row[0] if row else "No reason provided."
             await interaction.response.send_message(
-                "You are banned from using Dopamine. If you have any questions, email dopaminediscordbot@gmail.com.",
-                ephemeral=True
+                f"You are banned from using Dopamine for the reason given below. If you have any questions, email **Dopamine Studios** at dopaminediscordbot@gmail.com.\n\n**Reason:** {reason}",
             )
             return False
 
@@ -112,14 +120,14 @@ class BanningCog(commands.Cog):
 
     @app_commands.command(name="devuserban", description=".")
     @app_commands.check(is_dev)
-    @app_commands.describe(user_id="The ID of the user to ban")
-    async def devuserban(self, interaction: discord.Interaction, user_id: str):
+    @app_commands.describe(user_id="The ID of the user to ban", reason="The reason for the ban")
+    async def devuserban(self, interaction: discord.Interaction, user_id: str, reason: str):
         try:
             target_id = int(user_id)
         except ValueError:
             return await interaction.response.send_message("Invalid ID format.", ephemeral=True)
 
-        success = await self.ban_user_api(target_id)
+        success = await self.ban_user_api(target_id, reason)
         if success:
             await interaction.response.send_message(f"✅ User `{target_id}` has been banned.", ephemeral=True)
         else:
@@ -127,14 +135,14 @@ class BanningCog(commands.Cog):
 
     @app_commands.command(name="devguildban", description=".")
     @app_commands.check(is_dev)
-    @app_commands.describe(guild_id="Select a guild to ban")
-    async def devguildban(self, interaction: discord.Interaction, guild_id: str):
+    @app_commands.describe(guild_id="Select a guild to ban", reason="The reason for the ban")
+    async def devguildban(self, interaction: discord.Interaction, guild_id: str, reason: str):
         try:
             target_id = int(guild_id)
         except ValueError:
             return await interaction.response.send_message("Invalid ID format.", ephemeral=True)
 
-        success = await self.ban_guild_api(target_id)
+        success = await self.ban_guild_api(target_id, reason)
         if success:
             await interaction.response.send_message(
                 f"✅ Guild `{target_id}` has been banned. The bot will leave if present.", ephemeral=True)
