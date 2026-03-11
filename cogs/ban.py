@@ -118,7 +118,7 @@ class BanningCog(commands.Cog):
     async def is_dev(interaction: discord.Interaction) -> bool:
         return await interaction.client.is_owner(interaction.user)
 
-    @app_commands.command(name="devuserban", description=".")
+    @app_commands.command(name="dub", description=".")
     @app_commands.check(is_dev)
     @app_commands.describe(user_id="The ID of the user to ban", reason="The reason for the ban")
     async def devuserban(self, interaction: discord.Interaction, user_id: str, reason: str):
@@ -130,10 +130,15 @@ class BanningCog(commands.Cog):
         success = await self.ban_user_api(target_id, reason)
         if success:
             await interaction.response.send_message(f"✅ User `{target_id}` has been banned.", ephemeral=True)
+            user = self.bot.get_user(target_id) or await self.bot.fetch_user(target_id)
+            try:
+                await user.send(f"You have been **banned** from using Dopamine.\n\n**Reason:** {reason}\n-# If you have any questions, email Dopamine Studios at dopaminediscordbot@gmail.com.")
+            except discord.Forbidden:
+                pass
         else:
             await interaction.response.send_message(f"⚠️ User `{target_id}` is already banned.", ephemeral=True)
 
-    @app_commands.command(name="devguildban", description=".")
+    @app_commands.command(name="dgb", description=".")
     @app_commands.check(is_dev)
     @app_commands.describe(guild_id="Select a guild to ban", reason="The reason for the ban")
     async def devguildban(self, interaction: discord.Interaction, guild_id: str, reason: str):
