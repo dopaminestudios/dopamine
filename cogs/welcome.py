@@ -614,7 +614,7 @@ class Welcome(commands.Cog):
             msg_file = None
 
             if data.get("show_text", 1):
-                raw_msg = data.get("custom_message") or "Welcome to **{server.name}**, {member.mention}!"
+                raw_msg = data.get("custom_message") or "{member.mention} Welcome to **{server.name}**!"
                 msg_content = raw_msg.format(
                     member=member,
                     server=member.guild,
