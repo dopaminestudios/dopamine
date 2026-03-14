@@ -56,6 +56,7 @@ DDB_PATH = str(BASE_DIR / "databases" / "daily.db")
 WORDS_PATH = str(BASE_DIR / "databases" / "words_list.json")
 EDB_PATH = str(BASE_DIR / "databases" / "embeds.db")
 ARSPDB_PATH = str(BASE_DIR / "databases" / "autoresponse.db")
+AFKDB_PATH = str(BASE_DIR / "databases" / "afk.db")
 prompt = str(BASE_DIR / "databases" / "prompt.txt")
 with open(prompt, "r", encoding="utf-8") as f:
     system_prompt = f.read().strip()
