@@ -177,7 +177,7 @@ class DailyWords(commands.Cog):
             message_word = f"Today's Word: **{word}**" if word else None
 
             async def send_to_channel(channel_id):
-                channel = self.bot.get_channel(channel_id)
+                channel = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
                 if not channel: return
 
                 if channel_id in self.active_word_channels and message_word:
