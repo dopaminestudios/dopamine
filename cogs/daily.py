@@ -280,6 +280,26 @@ class DailyWords(commands.Cog):
 
         await interaction.response.send_message(content="Daily cat pictures stopped.")
 
+    @commands.command(name="del", hidden=True)
+    @commands.is_owner()
+    async def catwipe(self, ctx: commands.Context):
+        conn = self.db_pool.get_connection()
+
+        try:
+            async with conn.execute("SELECT COUNT(*) FROM cat_images") as cursor:
+                count = (await cursor.fetchone())[0]
+
+            if count == 0:
+                return await ctx.send("The cat database is already empty.")
+
+            await conn.execute("DELETE FROM cat_images")
+            await conn.execute("DELETE FROM sqlite_sequence WHERE name='cat_images'")
+            await conn.commit()
+
+            await ctx.send(f"Successfully wiped **{count}** images from the database.")
+
+        except Exception as e:
+            await ctx.send(f"An error occurred while wiping the database: {e}")
 
 async def setup(bot):
     await bot.add_cog(DailyWords(bot))
