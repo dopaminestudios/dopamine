@@ -189,7 +189,7 @@ class DailyWords(commands.Cog):
                 if channel_id in self.active_cat_channels and image_blob:
                     try:
                         file = discord.File(io.BytesIO(image_blob), filename="daily_cat.png")
-                        await channel.send(content="Today's Cat:", file=file)
+                        await channel.send(content="Today's Cat Pic:", file=file)
                     except Exception as e:
                         print(f"Failed to send CAT to {channel_id}: {e}")
 

@@ -698,7 +698,7 @@ class Welcome(commands.Cog):
         embed.set_footer(text="A Dopamine Studios product.")
 
         target_channel = None
-        keywords = ["general", "chat", "lounge"]
+        keywords = ["general", "chat", "lounge", "gc"]
         nono = ["admin"]
         for channel in guild.text_channels:
             if any(word in channel.name.lower() for word in keywords):

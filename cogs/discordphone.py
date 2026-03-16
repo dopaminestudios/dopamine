@@ -477,7 +477,7 @@ class DiscordPhone(commands.Cog):
 
         matched = await self.try_match(interaction.channel, interaction.user)
         rules_str = "[DiscordPhone Rules](<https://docs.google.com/document/d/1ZuoKDQCrLMcY72PLW9kzTM7a1sS0y6mzyF_eNwV3low/edit?tab=t.0>)"
-        tos_str = "[Terms of Service](https://docs.google.com/document/d/1kUC1P9aRNAwJD-HiP5v8HO-xowRiUGEbOZ-DfvOR2Tk/edit?tab=t.0)"
+        tos_str = "[Terms of Service](<https://docs.google.com/document/d/1kUC1P9aRNAwJD-HiP5v8HO-xowRiUGEbOZ-DfvOR2Tk/edit?tab=t.0>)"
         if matched:
             await interaction.response.send_message(f"<a:loading:1475121732108025929> You have successfully joined the queue! Waiting for another user...\n-# By continuing, you agree to the {rules_str} and {tos_str}. If you don't agree, stop using the bot.")
         else:
@@ -689,7 +689,7 @@ class DiscordPhone(commands.Cog):
 
         matched = await self.try_match(ctx.channel, ctx.author)
         rules_str = "[DiscordPhone Rules](<https://docs.google.com/document/d/1ZuoKDQCrLMcY72PLW9kzTM7a1sS0y6mzyF_eNwV3low/edit?tab=t.0>)"
-        tos_str = "[Terms of Service](https://docs.google.com/document/d/1kUC1P9aRNAwJD-HiP5v8HO-xowRiUGEbOZ-DfvOR2Tk/edit?tab=t.0)"
+        tos_str = "[Terms of Service](<https://docs.google.com/document/d/1kUC1P9aRNAwJD-HiP5v8HO-xowRiUGEbOZ-DfvOR2Tk/edit?tab=t.0>)"
         if matched:
             await ctx.send(f"<a:loading:1475121732108025929> You have successfully joined the queue! Waiting for another user...\n-# By continuing, you agree to the {rules_str} and {tos_str}. If you don't agree, stop using the bot.")
         else:

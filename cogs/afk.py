@@ -61,11 +61,14 @@ class ViewMissedPings(PrivateView):
             member = guild.get_member(entry.author_id) if guild else None
             user = member or interaction.client.get_user(entry.author_id) or await interaction.client.fetch_user(entry.author_id)
             display_name = user.mention or (user.name if user else f"User {entry.author_id}")
+            msg_link = ""
+            if entry.guild_id and entry.channel_id and entry.message_id:
+                msg_link = f" [[Jump]](<https://discord.com/channels/{entry.guild_id}/{entry.channel_id}/{entry.message_id}>)"
 
             lines.append(
                 f'{idx}. {display_name} '
                 f'(<t:{entry.timestamp}:d> <t:{entry.timestamp}:t>): '
-                f'"{entry.content}"'
+                f'"{entry.content}" {msg_link}'
             )
 
         paginator = ViewPaginator(
