@@ -1559,8 +1559,8 @@ class ConfirmationViewOld(PrivateLayoutView):
 
         is_disabled = self.value is not None
         action_row = discord.ui.ActionRow()
-        cancel = discord.ui.Button(label="Cancel", style=discord.ButtonStyle.red)
-        confirm = discord.ui.Button(label="Confirm", style=discord.ButtonStyle.green)
+        cancel = discord.ui.Button(label="Cancel", style=discord.ButtonStyle.secondary, disabled=is_disabled)
+        confirm = discord.ui.Button(label="Confirm", style=discord.ButtonStyle.green, disabled=is_disabled)
 
         cancel.callback = self.cancel_callback
         confirm.callback = self.confirm_callback
@@ -1576,6 +1576,7 @@ class ConfirmationViewOld(PrivateLayoutView):
         self.title_text = title
         self.body_text = f"~~{self.body_text}~~"
         self.color = color
+        self.value = True
         self.build_layout()
         if interaction.response.is_done():
             await interaction.edit_original_response(view=self)
