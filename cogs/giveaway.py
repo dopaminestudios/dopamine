@@ -733,7 +733,7 @@ class TemplateHomepage(PrivateLayoutView):
 
     async def browse_callback(self, interaction: discord.Interaction):
         templates = await self.cog.fetch_templates(guild_id=interaction.guild.id, mode="browse")
-        view = BrowsePage(self.cog, self.user, templates, interaction.guild.id)
+        view = BrowsePage(self.cog, self.user, templates, interaction.guild.id, is_th=True)
         await interaction.response.edit_message(view=view)
 
     async def mystuff_callback(self, interaction: discord.Interaction):
