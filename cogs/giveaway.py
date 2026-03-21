@@ -407,27 +407,21 @@ class GiveawayPreviewView(PrivateView):
 
     @discord.ui.button(label="Start", style=discord.ButtonStyle.green)
     async def start_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer(ephemeral=True)
 
         if self.template_mode:
+            await interaction.response.edit_message(content="Saving Giveaway Template...", embed=None, view=None)
             template_id = await self.cog.save_template(interaction, self.draft)
 
-            await interaction.followup.send(f"Saved giveaway template successfully! ID: `{template_id}`",
-                                            ephemeral=True)
-
-            try:
-                await interaction.message.delete()
-            except (discord.Forbidden, discord.HTTPException):
-                pass
+            await interaction.edit_original_response(f"Saved Giveaway Template successfully! ID: `{template_id}`")
 
             self.stop()
             return
 
+        await interaction.response.defer(ephemeral=True, thinking=True)
         channel = self.cog.bot.get_channel(self.draft.channel_id) or await self.cog.bot.fetch_channel(self.draft.channel_id)
         if not channel:
             return await interaction.followup.send(
-                "I searched far and wide, but I can't find the channel chosen for the giveaway!\n\nEnsure that I have the necessary permissions.",
-                ephemeral=True)
+                "I can't find the channel chosen for the giveaway!\nEnsure that I have the necessary permissions.")
 
         giveaway_id = int(discord.utils.utcnow().timestamp()) + random.randint(1, 69)
 
@@ -448,7 +442,7 @@ class GiveawayPreviewView(PrivateView):
                                       colour=discord.Colour.green())
         embed.set_footer(text=f"ID: {giveaway_id}")
 
-        await interaction.followup.send(embed=success_embed, ephemeral=True)
+        await interaction.followup.send(embed=success_embed)
 
         try:
             await interaction.message.delete()
