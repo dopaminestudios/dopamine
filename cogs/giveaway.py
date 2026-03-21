@@ -1788,9 +1788,7 @@ class Giveaways(commands.Cog):
             pool.append(user_id)
 
             if guild and extra_roles_list:
-                member = guild.get_member(user_id)
-                if not member:
-                    member = guild.fetch_member(user_id)
+                member = guild.get_member(user_id) or await guild.fetch_member(user_id)
                 if not member:
                     pass
                 if member:
