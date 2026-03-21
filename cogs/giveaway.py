@@ -775,16 +775,6 @@ class MystuffPage(PrivateLayoutView):
             desc = f"**Winners:** {t['winners']}\n**Duration:** {t['duration']}\n"
             if t['channel_id']: desc += f"**Channel:** <#{t['channel_id']}>\n"
             if t['host_id']: desc += f"**Giveaway Host:** <@{t['host_id']}>\n"
-            if t[
-                'extra_entries']: desc += f"**Extra Entries Role:** {t['extra_entries']}\n"
-            if t['required_roles']:
-                desc += f"**Required Roles:** {t['required_roles']}\n"
-                if t['req_behaviour'] is not None:
-                    desc += f"**Required Roles Behaviour:** Must have **all** of the listed roles\n"
-                else:
-                    desc += f"**Required Roles Behaviour:** Must have **one** of the listed roles\n"
-            if t['winner_role_id']: desc += f"**Winner Role:** <@&{t['winner_role_id']}>\n"
-            if t['blacklisted_roles']: desc += f"**Blacklisted Roles** {t['blacklisted_roles']}\n"
             if t['image']: desc += "**Embed Image:** Yes\n"
             if t['thumbnail']: desc += "**Embed Thumbnail:** Yes\n"
             if t['color']:
@@ -884,11 +874,6 @@ class EditPage(PrivateLayoutView):
         desc = f"**Winners:** {t['winners']}\n**Duration:** {t['duration']}\n"
         if t['channel_id']: desc += f"**Channel:** <#{t['channel_id']}>\n"
         if t['host_id']: desc += f"**Giveaway Host:** <@{t['host_id']}>\n"
-        if t['extra_entries']: desc += f"**Extra Entries Role:** {t['extra_entries']}\n"
-        if t['required_roles']: desc += f"**Required Roles:** {t['required_roles']}\n"
-        if t['req_behaviour'] is not None: desc += f"**Required Roles Behaviour:** {t['req_behaviour']}\n"
-        if t['winner_role_id']: desc += f"**Winner Role:** <@&{t['winner_role_id']}>\n"
-        if t['blacklisted_roles']: desc += f"**Blacklisted Roles** {t['blacklisted_roles']}\n"
         if t['image']: desc += "**Embed Image:** Yes\n"
         if t['thumbnail']: desc += "**Embed Thumbnail:** Yes\n"
         if t['color']: desc += f"**Colour:** {t['color']}"
