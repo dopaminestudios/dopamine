@@ -929,7 +929,8 @@ class EditPage(PrivateLayoutView):
         await interaction.response.send_message(view=view, ephemeral=True)
 
     async def back_callback(self, interaction: discord.Interaction):
-        view = MystuffPage(self.cog, self.user)
+        templates = await self.cog.fetch_templates(user_id=self.user.id, mode="mine")
+        view = MystuffPage(self.cog, self.user, templates)
         await interaction.response.edit_message(view=view)
 
 class BrowsePage(PrivateLayoutView):
