@@ -1041,7 +1041,7 @@ class Autoresponse(commands.Cog):
                 matched = trigger in msg_text
             elif record.match_mode == "fuzzy":
                 if msg_text and trigger:
-                    score = fuzz.partial_ratio(trigger, msg_text)
+                    score = fuzz.ratio(trigger, msg_text)
                     matched = score >= record.fuzzy_threshold
 
             if not matched:

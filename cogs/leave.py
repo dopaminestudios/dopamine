@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from dopamineframework import PrivateLayoutView
 from config import LEDB_PATH, LEAVECARD_PATH, BOLDFONT_PATH, MEDIUMFONT_PATH
 from dopamineframework import mod_check
-
+import re
 import pyvips
 import ctypes
 from pathlib import Path
@@ -71,6 +71,12 @@ class LeaveImageModal(discord.ui.Modal, title="Customise Goodbye Card"):
         required=False,
         max_length=50
     )
+    text_color = discord.ui.TextInput(
+        label="Text Hex Color",
+        placeholder="#FFFFFF",
+        required=False,
+        max_length=7
+    )
 
     def __init__(self, data: dict, callback_func):
         super().__init__()
@@ -78,9 +84,22 @@ class LeaveImageModal(discord.ui.Modal, title="Customise Goodbye Card"):
         self.img_url.default = data.get("image_url") or ""
         self.line1.default = data.get("image_line1") or "Goodbye {member.name}"
         self.line2.default = data.get("image_line2") or "We hope to see you again!"
+        self.text_color.default = data.get("embed_color") or "#FFFFFF"
 
     async def on_submit(self, interaction: discord.Interaction):
-        await self.callback_func(interaction, self.img_url.value, self.line1.value, self.line2.value)
+        color_val = self.text_color.value.strip()
+
+        hex_pattern = r'^#?([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$'
+
+        if color_val and not re.match(hex_pattern, color_val):
+            return await interaction.response.send_message(
+                "Invalid Hex Color! Please use a format like `#FFFFFF` or `FFF`.",
+                ephemeral=True
+            )
+
+        if color_val and not color_val.startswith("#"):
+            color_val = f"#{color_val}"
+        await self.callback_func(interaction, self.img_url.value, self.line1.value, self.line2.value, self.text_color.value)
 
 
 class ChannelSelectView(PrivateLayoutView):
@@ -267,9 +286,17 @@ class LeaveDashboardView(PrivateLayoutView):
     async def open_image_modal(self, interaction: discord.Interaction):
         await interaction.response.send_modal(LeaveImageModal(self.data, self.image_modal_callback))
 
-    async def image_modal_callback(self, interaction: discord.Interaction, url: str, line1: str, line2: str):
+    async def image_modal_callback(self, interaction: discord.Interaction, url: str, line1: str, line2: str,
+                                   color: str):
         final_url = url if url and ("http" in url) else None
-        await self.update_db(image_url=final_url, image_line1=line1, image_line2=line2)
+        final_color = color if color.startswith("#") and len(color) == 7 else "#FFFFFF"
+
+        await self.update_db(
+            image_url=final_url,
+            image_line1=line1,
+            image_line2=line2,
+            embed_color=final_color
+        )
         await self.refresh_state()
         await interaction.response.edit_message(view=self)
 
@@ -389,10 +416,10 @@ class LeaveDashboardView(PrivateLayoutView):
                 curr_l1 = self.data.get("image_line1") or "Goodbye {member.name}"
                 curr_l2 = self.data.get("image_line2") or "You will be missed!"
                 using_custom_img = "Yes" if self.data.get("image_url") else "No"
-
+                curr_color = self.data.get("embed_color") or "#FFFFFF"
                 section = discord.ui.Section(
                     discord.ui.TextDisplay(
-                        f"The Leave Card (image). Use the customise button to provide a custom image URL, or to edit text.\n\n* **Custom Background:** {using_custom_img}\n* **Current Image Text:**\n  * Line 1: `{curr_l1}`\n  * Line 2: `{curr_l2}`\n* **Available Variables:**\n  * `{{member.name}}`, `{{server.name}}`"),
+                        f"The Leave Card (image). Use the customise button to provide a custom image URL, or to edit text.\n\n* **Custom Background:** {using_custom_img}\n* **Current Image Text:**\n  * Line 1: `{curr_l1}`\n  * Line 2: `{curr_l2}`\n* **Text Colour:** {curr_color}\n* **Available Variables:**\n  * `{{member.name}}`, `{{server.name}}`"),
                     accessory=btn_img_config
                 )
                 container.add_item(section)
@@ -525,6 +552,8 @@ class Leaves(commands.Cog):
         line2_text = (data.get("image_line2") or "You will be missed!").format(
             member=member, server=guild
         )
+        hex_color = data.get("embed_color") or "#FFFFFF"
+        rgb = [int(hex_color.lstrip('#')[i:i + 2], 16) for i in (0, 2, 4)]
 
         base_img = await self.get_background_image(guild_id, image_url)
         if not base_img.hasalpha():
@@ -541,7 +570,9 @@ class Leaves(commands.Cog):
                 avatar = avatar.addalpha()
 
             mask = pyvips.Image.black(avatar_size, avatar_size)
-            mask = mask.draw_circle(255, avatar_size // 2, avatar_size // 2, avatar_size // 2, fill=True)
+            mask = mask.draw_circle(255, avatar_size // 2, avatar_size // 2, (avatar_size // 2) - 1, fill=True)
+
+            mask = mask.gaussblur(0.7)
 
             original_alpha = avatar.extract_band(avatar.bands - 1)
 
@@ -553,21 +584,21 @@ class Leaves(commands.Cog):
 
         font_family = "gg sans"
 
-        def draw_centered_text(base, text, size, y_pos, font_name, weight):
+        def draw_centered_text(base, text, size, y_pos, font_name, weight, color_rgb):
             mask = pyvips.Image.text(
                 f'<span font_family="{font_name}" weight="{weight}" size="{size * 1024}">{text}</span>'
             )
 
             x_pos = (686 - mask.width) // 2
 
-            white_text = mask.new_from_image([255, 255, 255]).copy(interpretation="srgb")
+            white_text = mask.new_from_image(color_rgb).copy(interpretation="srgb")
             text_img = white_text.bandjoin(mask)
 
             return base.composite2(text_img, 'over', x=x_pos, y=y_pos)
 
-        base_img = draw_centered_text(base_img, line1_text, 30, 178, font_name="gg sans", weight="Bold")
+        base_img = draw_centered_text(base_img, line1_text, 25, 178, font_name="gg sans", weight="Bold", color_rgb=rgb)
 
-        base_img = draw_centered_text(base_img, line2_text, 22, 223, font_name="gg sans Medium", weight="Normal")
+        base_img = draw_centered_text(base_img, line2_text, 22, 223, font_name="gg sans Medium", weight="Normal", color_rgb=rgb)
 
         png_buffer = base_img.write_to_buffer(".png")
         return discord.File(io.BytesIO(png_buffer), filename="leave.png")

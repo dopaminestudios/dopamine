@@ -546,14 +546,30 @@ class StickySetupModal(discord.ui.Modal):
 
         async with self.cog.acquire_db() as db:
             if self.is_edit:
-                old_data = self.cog.panel_cache[self.guild_id].pop(self.original_title)
-                data.update({k: v for k, v in old_data.items() if
-                             k not in ["title", "description", "footer", "image_url", "embed_color"]})
-                await db.execute("""UPDATE sticky_panels SET title=?, description=?, footer=?, image_url=?, embed_color=?
-                                    WHERE guild_id=? AND title=?""",
-                                 (title, data['description'], data['footer'], data['image_url'], color_val,
-                                  self.guild_id, self.original_title))
-                msg = f"Sticky message **{title}** updated."
+                # Get the existing reference so we update the object everywhere
+                panel = self.cog.panel_cache[self.guild_id].get(self.original_title)
+
+                # Update the actual dictionary object that active_channels is also pointing to
+                panel.update({
+                    "title": title,
+                    "embed_color": color_val or None,
+                    "description": self.description_input.value or None,
+                    "image_url": self.image_url_input.value or None,
+                    "footer": self.footer_input.value or None,
+                })
+
+                # Handle title change in the nested dict
+                if title != self.original_title:
+                    self.cog.panel_cache[self.guild_id][title] = self.cog.panel_cache[self.guild_id].pop(
+                        self.original_title)
+
+                async with self.cog.acquire_db() as db:
+                    await db.execute("""UPDATE sticky_panels SET title=?, description=?, footer=?, image_url=?, embed_color=?
+                                        WHERE guild_id=? AND title=?""",
+                                     (title, panel['description'], panel['footer'], panel['image_url'], color_val,
+                                      self.guild_id, self.original_title))
+                msg = f"Sticky message **{title}** updated!"
+                data = panel
             else:
                 cols = ", ".join(data.keys());
                 placeholders = ", ".join(["?"] * len(data))
@@ -563,7 +579,7 @@ class StickySetupModal(discord.ui.Modal):
 
         if self.guild_id not in self.cog.panel_cache: self.cog.panel_cache[self.guild_id] = {}
         self.cog.panel_cache[self.guild_id][title] = data
-
+        self.cog.active_channels[self.channel_id] = data
         channel = self.cog.bot.get_channel(self.channel_id) or await self.cog.bot.get_channel(self.channel_id)
         if channel: await self.cog.update_sticky_message(data, channel)
         await interaction.response.send_message(msg, ephemeral=True)

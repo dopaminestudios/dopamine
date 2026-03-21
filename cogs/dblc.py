@@ -24,7 +24,7 @@ class Dblc(commands.Cog):
         self.bot_version = VERSION.bot_version
         self.latency_cache = deque(maxlen=1440)
         self.temp_samples = []
-        self.manager = LoggingManager
+        self.manager = LoggingManager()
         self.process = psutil.Process(os.getpid())
         self.process.cpu_percent(interval=None)
         self.current_cpu = 0.0
@@ -194,7 +194,9 @@ class Dblc(commands.Cog):
                 )
             return await interaction.edit_original_response(f"An error occurred: {e}", ephemeral=True)
         channel_id = await self.manager.log_get(interaction.guild.id)
-        log_ch = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
+        log_ch = None
+        if channel_id:
+            log_ch = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
         if log_ch:
             log_embed = discord.Embed(
                 description=f"**{deleted_count}** message(s) purged in {interaction.channel.mention}.",
@@ -203,7 +205,7 @@ class Dblc(commands.Cog):
             log_embed.set_footer(text=f"By {interaction.user}", icon_url=interaction.user.display_avatar.url)
             await log_ch.send(embed=log_embed)
 
-        await interaction.edit_original_response(f"Successfully purged **{deleted_count}** messages.", ephemeral=True)
+        await interaction.edit_original_response(content=f"Successfully purged **{deleted_count}** message(s).")
 
     @app_commands.command(name="ban", description="Fake-ban someone (cosmetic).")
     @app_commands.describe(member="Who to fake-ban", duration="How long (text)", reason="Optional reason")
@@ -468,7 +470,7 @@ class Dblc(commands.Cog):
                                                 view=view)
 
 
-    @app_commands.command(name="lis", description="List all servers the bot is in.")
+    @app_commands.command(name="ls", description="List all servers the bot is in.")
     async def ls(self, interaction: discord.Interaction):
         if not await self.bot.is_owner(interaction.user):
             await interaction.response.send_message(":shushing_face:", ephemeral=True)

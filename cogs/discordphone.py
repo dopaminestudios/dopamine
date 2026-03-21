@@ -477,7 +477,7 @@ class DiscordPhone(commands.Cog):
 
         matched = await self.try_match(interaction.channel, interaction.user)
         rules_str = "[DiscordPhone Rules](<https://docs.google.com/document/d/1ZuoKDQCrLMcY72PLW9kzTM7a1sS0y6mzyF_eNwV3low/edit?tab=t.0>)"
-        tos_str = "[Terms of Service](https://docs.google.com/document/d/1kUC1P9aRNAwJD-HiP5v8HO-xowRiUGEbOZ-DfvOR2Tk/edit?tab=t.0)"
+        tos_str = "[Terms of Service](<https://docs.google.com/document/d/1kUC1P9aRNAwJD-HiP5v8HO-xowRiUGEbOZ-DfvOR2Tk/edit?tab=t.0>)"
         if matched:
             await interaction.response.send_message(f"<a:loading:1475121732108025929> You have successfully joined the queue! Waiting for another user...\n-# By continuing, you agree to the {rules_str} and {tos_str}. If you don't agree, stop using the bot.")
         else:
@@ -679,76 +679,69 @@ class DiscordPhone(commands.Cog):
 
         await interaction.response.send_message("Log and Reports channel has been set to this channel.", ephemeral=True)
 
-        # --- Prefix Equivalents ---
+    @commands.command(name="start")
+    async def start_prefix(self, ctx: commands.Context):
+        if ctx.channel.id in self.active_calls:
+            return await ctx.send("This channel is already in a call!")
 
-        @commands.command(name="start")
-        async def start_prefix(self, ctx: commands.Context):
-            if ctx.channel.id in self.active_calls:
-                return await ctx.send("This channel is already in a call!")
+        if any(c_id == ctx.channel.id for c_id, _ in self.queue):
+            return await ctx.send("This channel is already in the matchmaking queue!")
 
-            if any(c_id == ctx.channel.id for c_id, _ in self.queue):
-                return await ctx.send("This channel is already in the matchmaking queue!")
+        matched = await self.try_match(ctx.channel, ctx.author)
+        rules_str = "[DiscordPhone Rules](<https://docs.google.com/document/d/1ZuoKDQCrLMcY72PLW9kzTM7a1sS0y6mzyF_eNwV3low/edit?tab=t.0>)"
+        tos_str = "[Terms of Service](<https://docs.google.com/document/d/1kUC1P9aRNAwJD-HiP5v8HO-xowRiUGEbOZ-DfvOR2Tk/edit?tab=t.0>)"
+        if matched:
+            await ctx.send(f"<a:loading:1475121732108025929> You have successfully joined the queue! Waiting for another user...\n-# By continuing, you agree to the {rules_str} and {tos_str}. If you don't agree, stop using the bot.")
+        else:
+            self.queue.append((ctx.channel.id, ctx.author))
+            await ctx.send(
+                f"<a:loading:1475121732108025929> You have successfully joined the queue! Waiting for another user...\n\nTo leave the queue, use `!!hangup` or `/discordphone hangup`.\n-# By continuing, you agree to the {rules_str} and {tos_str}. If you don't agree, stop using the bot.")
 
-            # Logic for matchmaking
-            matched = await self.try_match(ctx.channel, ctx.author)
-            rules_str = "[DiscordPhone Rules](<https://docs.google.com/document/d/1ZuoKDQCrLMcY72PLW9kzTM7a1sS0y6mzyF_eNwV3low/edit?tab=t.0>)"
-            tos_str = "[Terms of Service](https://docs.google.com/document/d/1kUC1P9aRNAwJD-HiP5v8HO-xowRiUGEbOZ-DfvOR2Tk/edit?tab=t.0)"
-            if matched:
-                await ctx.send(f"<a:loading:1475121732108025929> You have successfully joined the queue! Waiting for another user...\n-# By continuing, you agree to the {rules_str} and {tos_str}. If you don't agree, stop using the bot.")
-            else:
-                self.queue.append((ctx.channel.id, ctx.author))
-                await ctx.send(
-                    f"<a:loading:1475121732108025929> You have successfully joined the queue! Waiting for another user...\n\nTo leave the queue, use `!!hangup` or `/discordphone hangup`.\n-# By continuing, you agree to the {rules_str} and {tos_str}. If you don't agree, stop using the bot.")
+        log_chan_id = self.settings_cache.get("log_channel")
+        log_channel = self.bot.get_channel(log_chan_id) if log_chan_id else None
+        if log_channel:
+            await log_channel.send(f" [QUEUE] Channel {ctx.channel.id} from {ctx.guild.name} joined queue.")
 
-            # Sync with log channel
-            log_chan_id = self.settings_cache.get("log_channel")
-            log_channel = self.bot.get_channel(log_chan_id) if log_chan_id else None
-            if log_channel:
-                await log_channel.send(f" [QUEUE] Channel {ctx.channel.id} from {ctx.guild.name} joined queue.")
+    @commands.command(name="skip")
+    async def skip_prefix(self, ctx: commands.Context):
+        now = time.time()
+        user_skips = self.skip_cooldowns.get(ctx.author.id, [])
+        user_skips = [t for t in user_skips if now - t < 300]
 
-        @commands.command(name="skip")
-        async def skip_prefix(self, ctx: commands.Context):
-            now = time.time()
-            user_skips = self.skip_cooldowns.get(ctx.author.id, [])
-            user_skips = [t for t in user_skips if now - t < 300]
+        if len(user_skips) >= 2:
+            return await ctx.send("You're skipping too fast! Please wait a few minutes.")
 
-            if len(user_skips) >= 2:
-                return await ctx.send("You're skipping too fast! Please wait a few minutes.")
+        if ctx.channel.id not in self.active_calls:
+            return await ctx.send("You are not in a call.")
 
-            if ctx.channel.id not in self.active_calls:
-                return await ctx.send("You are not in a call.")
+        call = self.active_calls[ctx.channel.id]
 
-            call = self.active_calls[ctx.channel.id]
+        self.last_partner[call.user_a.id] = call.user_b.id
+        self.last_partner[call.user_b.id] = call.user_a.id
+        user_skips.append(now)
+        self.skip_cooldowns[ctx.author.id] = user_skips
 
-            # Cooldown & Partner tracking
-            self.last_partner[call.user_a.id] = call.user_b.id
-            self.last_partner[call.user_b.id] = call.user_a.id
-            user_skips.append(now)
-            self.skip_cooldowns[ctx.author.id] = user_skips
+        await ctx.send("Skipping this user...")
+        await self.end_call(call,
+                            f"{ctx.author.display_name} has skipped the call.\n\n<a:loading:1475121732108025929> Re-joining queue...\n-# To leave the queue, use `!!hangup` or `/discordphone hangup`.")
 
-            await ctx.send("Skipping this user...")
-            await self.end_call(call,
-                                f"{ctx.author.display_name} has skipped the call.\n\n<a:loading:1475121732108025929> Re-joining queue...\n-# To leave the queue, use `!!hangup` or `/discordphone hangup`.")
+        for c_id, u_obj in [(call.chan_a, call.user_a), (call.chan_b, call.user_b)]:
+            chan = self.bot.get_channel(c_id) or await self.bot.fetch_channel(c_id)
+            if not await self.try_match(chan, u_obj):
+                self.queue.append((c_id, u_obj))
 
-            # Re-queue both parties
-            for c_id, u_obj in [(call.chan_a, call.user_a), (call.chan_b, call.user_b)]:
-                chan = self.bot.get_channel(c_id) or await self.bot.fetch_channel(c_id)
-                if not await self.try_match(chan, u_obj):
-                    self.queue.append((c_id, u_obj))
+    @commands.command(name="hangup")
+    async def hangup_prefix(self, ctx: commands.Context):
+        if any(c_id == ctx.channel.id for c_id, _ in self.queue):
+            self.queue = [(c_id, u_obj) for c_id, u_obj in self.queue if c_id != ctx.channel.id]
+            return await ctx.send("Removed from queue.")
 
-        @commands.command(name="hangup")
-        async def hangup_prefix(self, ctx: commands.Context):
-            # Check if in queue
-            if any(c_id == ctx.channel.id for c_id, _ in self.queue):
-                self.queue = [(c_id, u_obj) for c_id, u_obj in self.queue if c_id != ctx.channel.id]
-                return await ctx.send("Removed from queue.")
+        if ctx.channel.id not in self.active_calls:
+            return await ctx.send("You are not currently in a call.")
 
-            if ctx.channel.id not in self.active_calls:
-                return await ctx.send("You are not currently in a call.")
-
-            call = self.active_calls[ctx.channel.id]
-            await ctx.send("Hanging up...")
-            await self.end_call(call, f"Call disconnected by {ctx.author.display_name}.")
+        call = self.active_calls[ctx.channel.id]
+        await ctx.send("Hanging up...")
+        await self.end_call(call, f"Call disconnected by {ctx.author.display_name}.")
 
 
 class CustomWarnModal(discord.ui.Modal, title='Warn Custom User'):

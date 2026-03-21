@@ -1,16 +1,14 @@
 import discord
 from discord.ext import commands, tasks
 import aiohttp
-import logging
+import asyncio
 from config import HEARTBEAT_URL
-
 
 
 class StatusHeartbeat(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.heartbeat_url = HEARTBEAT_URL
-
         self.send_heartbeat.start()
 
     def cog_unload(self):
@@ -18,13 +16,20 @@ class StatusHeartbeat(commands.Cog):
 
     @tasks.loop(minutes=1.0)
     async def send_heartbeat(self):
-        async with aiohttp.ClientSession() as session:
-            try:
-                async with session.get(self.heartbeat_url, timeout=10) as response:
+        try:
+            timeout = aiohttp.ClientTimeout(total=15, connect=5)
+
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(self.heartbeat_url) as response:
                     if response.status != 200:
-                        self.bot.logger.warning(f"Heartbeat failed with status: {response.status}")
-            except Exception as e:
-                self.bot.logger.error(f"Error sending heartbeat: {e}")
+                        self.bot.logger.warning(f"Heartbeat failed: Status {response.status}")
+                    else:
+                        pass
+
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            self.bot.logger.error(f"Network error during heartbeat: {e}")
+        except Exception as e:
+            self.bot.logger.error(f"Unexpected error in heartbeat loop: {e}")
 
     @send_heartbeat.before_loop
     async def before_heartbeat(self):

@@ -177,7 +177,7 @@ class DailyWords(commands.Cog):
             message_word = f"Today's Word: **{word}**" if word else None
 
             async def send_to_channel(channel_id):
-                channel = self.bot.get_channel(channel_id)
+                channel = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
                 if not channel: return
 
                 if channel_id in self.active_word_channels and message_word:
@@ -189,7 +189,7 @@ class DailyWords(commands.Cog):
                 if channel_id in self.active_cat_channels and image_blob:
                     try:
                         file = discord.File(io.BytesIO(image_blob), filename="daily_cat.png")
-                        await channel.send(content="Today's Cat:", file=file)
+                        await channel.send(content="Today's Cat Pic:", file=file)
                     except Exception as e:
                         print(f"Failed to send CAT to {channel_id}: {e}")
 
@@ -280,6 +280,26 @@ class DailyWords(commands.Cog):
 
         await interaction.response.send_message(content="Daily cat pictures stopped.")
 
+    @commands.command(name="del", hidden=True)
+    @commands.is_owner()
+    async def catwipe(self, ctx: commands.Context):
+        conn = self.db_pool.get_connection()
+
+        try:
+            async with conn.execute("SELECT COUNT(*) FROM cat_images") as cursor:
+                count = (await cursor.fetchone())[0]
+
+            if count == 0:
+                return await ctx.send("The cat database is already empty.")
+
+            await conn.execute("DELETE FROM cat_images")
+            await conn.execute("DELETE FROM sqlite_sequence WHERE name='cat_images'")
+            await conn.commit()
+
+            await ctx.send(f"Successfully wiped **{count}** images from the database.")
+
+        except Exception as e:
+            await ctx.send(f"An error occurred while wiping the database: {e}")
 
 async def setup(bot):
     await bot.add_cog(DailyWords(bot))
