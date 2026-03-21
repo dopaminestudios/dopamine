@@ -470,7 +470,7 @@ class Dblc(commands.Cog):
                                                 view=view)
 
 
-    @app_commands.command(name="lis", description="List all servers the bot is in.")
+    @app_commands.command(name="ls", description="List all servers the bot is in.")
     async def ls(self, interaction: discord.Interaction):
         if not await self.bot.is_owner(interaction.user):
             await interaction.response.send_message(":shushing_face:", ephemeral=True)
