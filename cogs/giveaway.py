@@ -534,23 +534,30 @@ class WinnerRoleSelectView(discord.ui.View):
         self.key = key
         self.draft = draft
         self.parent_view = parent_view
-        self.select = discord.ui.RoleSelect(placeholder=f"Pick {label}...", min_values=1, max_values=10)
+        self.select = discord.ui.RoleSelect(placeholder=f"Pick {label}...", min_values=1, max_values=1)
         self.select.callback = self.callback
         self.add_item(self.select)
 
     async def callback(self, interaction: discord.Interaction):
         role_ids = [role.id for role in self.select.values]
+        text = None
         if self.key == "extra":
             self.draft.extra_entries = role_ids
+            text = "Extra Entry Roles"
         elif self.key == "required":
             self.draft.required_roles = role_ids
+            text = "Required Roles"
         elif self.key == "blacklist":
             self.draft.blacklisted_roles = role_ids
+            text = "Blacklisted Roles"
         elif self.key == "winner_role":
             self.draft.winner_role = role_ids[0]
+            text = "Winner Role"
+
         new_embed = self.parent_view.cog.create_giveaway_embed(self.draft)
         await self.parent_view.message.edit(embed=new_embed)
-        await interaction.response.send_message(f"Updated {self.key} successfully!", ephemeral=True)
+
+        await interaction.response.send_message(f"Updated **{text}** successfully!", ephemeral=True)
 
 
 class GiveawayJoinView(discord.ui.View):
