@@ -2291,7 +2291,7 @@ class Giveaways(commands.Cog):
 
         body_content = (f"Are you sure you want to:\n"
                         f"* Re-roll this giveaway to pick **{winners}** new winners\n"
-                        f"* {'Preserve old winners and their roles' if preserve_winners else f'over-write **{winners}** old winners and remove their winner role'}\n"
+                        f"* {'Preserve old winners and their roles' if preserve_winners else f'override **{winners}** old winners and remove their winner role'}\n"
                         f"{f'* Give **{winners}** the winner role' if g[1] else ''}")
 
         view = ConfirmationViewOld("Pending Confirmation", body_content, interaction.user)
@@ -2316,14 +2316,14 @@ class Giveaways(commands.Cog):
                                       (giveaway_id,)) as cursor:
                     prev_rows = await cursor.fetchall()
                     if not prev_rows:
-                        return await interaction.edit_original_response("This giveaway hasn't ended yet!",
+                        return await interaction.followup.send_response("This giveaway hasn't ended yet!",
                                                                         ephemeral=True)
                     prev_winners = [r[0] for r in prev_rows]
 
                 eligible_pool = [uid for uid in pool if uid not in prev_winners]
 
                 if not eligible_pool:
-                    return await interaction.edit_original_response("No new participants available to pick from!",
+                    return await interaction.followup.send_response("No new participants available to pick from!",
                                                                     ephemeral=True)
 
                 new_picks = random.sample(eligible_pool, min(len(eligible_pool), winners))
