@@ -189,7 +189,7 @@ class DestructiveConfirmationView(PrivateLayoutView):
             await self.update_view(interaction, "Timed Out", discord.Color(0xdf5046))
 
 
-class CV2Helper(PrivateLayoutView):
+class WelcomeDashboardView(PrivateLayoutView):
     def __init__(self, cog, guild_id: int, user: discord.Member):
         super().__init__(user=user, timeout=None)
         self.cog = cog
@@ -676,7 +676,7 @@ class Welcome(commands.Cog):
     @app_commands.check(mod_check)
     async def welcome_dashboard(self, interaction: discord.Interaction):
         await interaction.response.send_message(
-            view=CV2Helper(self, interaction.guild.id, interaction.user)
+            view=WelcomeDashboardView(self, interaction.guild.id, interaction.user)
         )
 
     @commands.Cog.listener()
