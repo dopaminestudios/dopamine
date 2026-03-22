@@ -38,7 +38,7 @@ class LeaveTextModal(discord.ui.Modal, title="Customise Leave Text"):
     message = discord.ui.TextInput(
         label="Message Content",
         style=discord.TextStyle.paragraph,
-        placeholder="Goodbye, {member.name}. You will be missed.",
+        placeholder="Goodbye, {member.display_name}. You will be missed.",
         required=True,
         max_length=2000
     )
@@ -46,7 +46,7 @@ class LeaveTextModal(discord.ui.Modal, title="Customise Leave Text"):
     def __init__(self, current_msg: str, callback_func):
         super().__init__()
         self.callback_func = callback_func
-        self.message.default = current_msg or "{member.name} has left the server"
+        self.message.default = current_msg or "{member.display_name} has left the server"
 
 
     async def on_submit(self, interaction: discord.Interaction):
@@ -82,7 +82,7 @@ class LeaveImageModal(discord.ui.Modal, title="Customise Goodbye Card"):
         super().__init__()
         self.callback_func = callback_func
         self.img_url.default = data.get("image_url") or ""
-        self.line1.default = data.get("image_line1") or "Goodbye {member.name}"
+        self.line1.default = data.get("image_line1") or "Goodbye {member.display_name}"
         self.line2.default = data.get("image_line2") or "We hope to see you again!"
         self.text_color.default = data.get("embed_color") or "#FFFFFF"
 
@@ -249,7 +249,7 @@ class LeaveDashboardView(PrivateLayoutView):
         content, file = None, None
 
         if self.data.get("show_text", 1):
-            raw_msg = self.data.get("custom_message") or "{member.name} has left the server"
+            raw_msg = self.data.get("custom_message") or "{member.display_name} has left the server"
             content = f"**TEST:** {raw_msg.format(member=bot_member, server=guild)}"
 
         if self.data.get("show_image", 1):
@@ -386,11 +386,11 @@ class LeaveDashboardView(PrivateLayoutView):
                 btn_text_config = discord.ui.Button(label=f"Customise", style=discord.ButtonStyle.primary)
                 btn_text_config.callback = self.open_text_modal
 
-                curr_text = self.data.get("custom_message") or "{member.name} has left the server"
+                curr_text = self.data.get("custom_message") or "{member.display_name} has left the server"
 
                 section = discord.ui.Section(
                     discord.ui.TextDisplay(
-                        f"The text part of the leave message. Click the customise button to customise the format.\n\n* **Current Format:**\n  * ```{curr_text}```\n* **Available Variables:**\n  * `{{member.name}}` - The member's username.\n  * `{{server.name}}` - The name of the server."),
+                        f"The text part of the leave message. Click the customise button to customise the format.\n\n* **Current Format:**\n  * ```{curr_text}```\n* **Available Variables:**\n  * `{{member.mention}}` - Mention the member.\n  * `{{member.display_name}}` - The member's display name.\n  * `{{server.name}}` - The name of the server.\n  * ...and others available in Discord member or server/guild objects"),
                     accessory=btn_text_config
                 )
                 container.add_item(section)
@@ -413,13 +413,13 @@ class LeaveDashboardView(PrivateLayoutView):
                 btn_img_config = discord.ui.Button(label="Customise", style=discord.ButtonStyle.primary)
                 btn_img_config.callback = self.open_image_modal
 
-                curr_l1 = self.data.get("image_line1") or "Goodbye {member.name}"
+                curr_l1 = self.data.get("image_line1") or "Goodbye {member.display_name}"
                 curr_l2 = self.data.get("image_line2") or "You will be missed!"
                 using_custom_img = "Yes" if self.data.get("image_url") else "No"
                 curr_color = self.data.get("embed_color") or "#FFFFFF"
                 section = discord.ui.Section(
                     discord.ui.TextDisplay(
-                        f"The Leave Card (image). Use the customise button to provide a custom image URL, or to edit text.\n\n* **Custom Background:** {using_custom_img}\n* **Current Image Text:**\n  * Line 1: `{curr_l1}`\n  * Line 2: `{curr_l2}`\n* **Text Colour:** {curr_color}\n* **Available Variables:**\n  * `{{member.name}}`, `{{server.name}}`"),
+                        f"The Leave Card (image). Use the customise button to provide a custom image URL, or to edit text.\n\n* **Custom Background:** {using_custom_img}\n* **Current Image Text:**\n  * Line 1: `{curr_l1}`\n  * Line 2: `{curr_l2}`\n* **Text Colour:** {curr_color}\n* **Available Variables:**\n  * `{{member.name}}`, `{{server.name}}`, and others available in Discord member or server/guild objects."),
                     accessory=btn_img_config
                 )
                 container.add_item(section)
@@ -546,7 +546,7 @@ class Leaves(commands.Cog):
         guild_id = guild.id
         image_url = data.get("image_url")
 
-        line1_text = (data.get("image_line1") or "Goodbye {member.name}").format(
+        line1_text = (data.get("image_line1") or "Goodbye {member.display_name}").format(
             member=member, server=guild
         )
         line2_text = (data.get("image_line2") or "You will be missed!").format(
@@ -596,7 +596,7 @@ class Leaves(commands.Cog):
 
             return base.composite2(text_img, 'over', x=x_pos, y=y_pos)
 
-        base_img = draw_centered_text(base_img, line1_text, 25, 178, font_name="gg sans", weight="Bold", color_rgb=rgb)
+        base_img = draw_centered_text(base_img, line1_text, 24, 178, font_name="gg sans", weight="Bold", color_rgb=rgb)
 
         base_img = draw_centered_text(base_img, line2_text, 22, 223, font_name="gg sans Medium", weight="Normal", color_rgb=rgb)
 
@@ -626,7 +626,7 @@ class Leaves(commands.Cog):
             msg_file = None
 
             if data.get("show_text", 1):
-                raw_msg = data.get("custom_message") or "{member.name} has left the server"
+                raw_msg = data.get("custom_message") or "{member.display_name} has left the server"
                 msg_content = raw_msg.format(member=user, server=guild)
 
             if data.get("show_image", 1):
