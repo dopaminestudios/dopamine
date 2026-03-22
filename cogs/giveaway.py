@@ -34,7 +34,7 @@ class GiveawayDraft:
     required_behaviour: int = 0
     blacklisted_roles: List[int] = None
     extra_entries: List[int] = None
-    winner_role: Optional[int] = None
+    winner_role: List[int] = None
     image: Optional[str] = None
     thumbnail: Optional[str] = None
     color: str = "discord.Color(0x944ae8)"
@@ -113,7 +113,7 @@ class GiveawayEditSelect(discord.ui.Select):
                                  description="Roles required to participate."),
             discord.SelectOption(label="8. Required Roles Behaviour", value="behavior",
                                  description="The behavior of the required roles feature."),
-            discord.SelectOption(label="9. Winner Role", value="winner_role", description="Role given to winners."),
+            discord.SelectOption(label="9. Winner Roles", value="winner_role", description="Roles given to winners."),
             discord.SelectOption(label="10. Blacklisted Roles", value="blacklist",
                                  description="Roles that cannot participate."),
             discord.SelectOption(label="11. Image", value="image",
@@ -154,7 +154,7 @@ class GiveawayEditSelect(discord.ui.Select):
 
         elif value == "winner_role":
             new_view = WinnerRoleSelectView("winner_role", "Winner Role", self.draft, self.parent_view)
-            msg = "Choose role to be given to winner(s):"
+            msg = "Choose roles to be given to winner(s):"
 
         elif value == "blacklist":
             new_view = RoleSelectView("blacklist", "Blacklisted Roles", self.draft, self.parent_view)
@@ -511,9 +511,6 @@ class RoleSelectView(discord.ui.View):
         elif self.key == "blacklist":
             self.draft.blacklisted_roles = role_ids
             text = "Blacklisted Roles"
-        elif self.key == "winner_role":
-            self.draft.winner_role = role_ids[0]
-            text = "Winner Role"
 
         new_embed = self.parent_view.cog.create_giveaway_embed(self.draft)
         await self.parent_view.message.edit(embed=new_embed)
@@ -528,24 +525,15 @@ class WinnerRoleSelectView(discord.ui.View):
         self.key = key
         self.draft = draft
         self.parent_view = parent_view
-        self.select = discord.ui.RoleSelect(placeholder=f"Pick {label}...", min_values=1, max_values=1)
+        self.select = discord.ui.RoleSelect(placeholder=f"Pick {label}...", min_values=1, max_values=10)
         self.select.callback = self.callback
         self.add_item(self.select)
 
     async def callback(self, interaction: discord.Interaction):
         role_ids = [role.id for role in self.select.values]
         text = None
-        if self.key == "extra":
-            self.draft.extra_entries = role_ids
-            text = "Extra Entry Roles"
-        elif self.key == "required":
-            self.draft.required_roles = role_ids
-            text = "Required Roles"
-        elif self.key == "blacklist":
-            self.draft.blacklisted_roles = role_ids
-            text = "Blacklisted Roles"
-        elif self.key == "winner_role":
-            self.draft.winner_role = role_ids[0]
+        if self.key == "winner_role":
+            self.draft.winner_role = role_ids
             text = "Winner Role"
 
         new_embed = self.parent_view.cog.create_giveaway_embed(self.draft)
@@ -1692,7 +1680,7 @@ class Giveaways(commands.Cog):
                     req_behaviour INTEGER,
                     blacklisted_roles TEXT,
                     extra_entries TEXT,
-                    winner_role_id INTEGER,
+                    winner_role_id TEXT,
                     image TEXT,
                     thumbnail TEXT,
                     color TEXT,
@@ -1833,28 +1821,31 @@ class Giveaways(commands.Cog):
                 mention_str = ", ".join([f"<@{w}>" for w in winners])
                 await channel.send(f"🎉 Congratulations to: {mention_str} for winning **{g['prize']}!**")
 
-                winner_role_id = g.get('winner_role_id')
-                if winner_role_id:
-                    role = guild.get_role(winner_role_id)
+                winner_role_ids = [int(r) for r in g['winner_role_id'].split(",")] if g['winner_role_id'] else []
 
-                    async def chunk_list(lst, n):
-                        for i in range(0, len(lst), n):
-                            yield lst[i:i + n]
 
-                    if role:
-                        for chunk in chunk_list(winners, 5):
-                            for member_id in chunk:
-                                member = guild.get_member(member_id) or await guild.fetch_member(member_id)
-                                if member:
-                                    try:
-                                        await member.add_roles(role, reason="Giveaway Winner")
-                                    except discord.HTTPException:
-                                        pass
+                async def chunk_list(lst, n):
+                    for i in range(0, len(lst), n):
+                        yield lst[i:i + n]
 
-                            await asyncio.sleep(1.5)
+                if winner_role_ids:
+                    for role_id in winner_role_ids:
+                        role = guild.get_role(role_id)
+
+                        if role:
+                            for chunk in chunk_list(winners, 5):
+                                for member_id in chunk:
+                                    member = guild.get_member(member_id) or await guild.fetch_member(member_id)
+                                    if member:
+                                        try:
+                                            await member.add_roles(role, reason="Giveaway Winner")
+                                        except discord.HTTPException:
+                                            pass
+
+                                await asyncio.sleep(1.5)
 
             except Exception:
-                pass
+                return
 
     async def mark_as_ended(self, giveaway_id: int, guild_id: int, whichone: str):
         if whichone == 'giveaway_cache':
@@ -1914,8 +1905,8 @@ class Giveaways(commands.Cog):
                 colour=embed_color)
 
         if draft.winner_role:
-            role_mentions = ", ".join([f"<@&{r}>" for r in draft.required_roles])
-            embed.add_field(name="Winners' Role", value=f"Winner(s) will receive the following role: {role_mentions}", inline=False)
+            role_mentions = ", ".join([f"<@&{r}>" for r in draft.winner_role])
+            embed.add_field(name="Winners' Roles", value=f"Winner(s) will receive the following role(s): {role_mentions}", inline=False)
         if draft.required_roles:
             role_mentions = ", ".join([f"<@&{r}>" for r in draft.required_roles])
             mode = "all of the following" if draft.required_behaviour == 0 else "one of the following"
@@ -1937,6 +1928,7 @@ class Giveaways(commands.Cog):
         req_roles = ",".join(map(str, draft.required_roles)) if draft.required_roles else ""
         black_roles = ",".join(map(str, draft.blacklisted_roles)) if draft.blacklisted_roles else ""
         extra_roles = ",".join(map(str, draft.extra_entries)) if draft.extra_entries else ""
+        winner_roles = ",".join(map(str, draft.winner_role)) if draft.winner_role else ""
 
         data = {
             "guild_id": draft.guild_id,
@@ -1944,7 +1936,7 @@ class Giveaways(commands.Cog):
             "channel_id": draft.channel_id,
             "message_id": message_id,
             "prize": draft.prize,
-            "winners_count": draft.winners,
+            "winners_count": winner_roles,
             "end_time": end_time,
             "host_id": draft.host_id,
             "required_roles": req_roles,
@@ -2000,13 +1992,14 @@ class Giveaways(commands.Cog):
         req_roles = ",".join(map(str, draft.required_roles)) if draft.required_roles else ""
         black_roles = ",".join(map(str, draft.blacklisted_roles)) if draft.blacklisted_roles else ""
         extra_roles = ",".join(map(str, draft.extra_entries)) if draft.extra_entries else ""
+        winner_roles = ",".join(map(str, draft.winner_role)) if draft.winner_role else ""
 
         data = {
             "template_id": template_id,
             "creator_id": interaction.user.id,
             "creation_guild_id": interaction.guild.id,
             "prize": draft.prize,
-            "winners": draft.winners,
+            "winners": winner_roles,
             "duration": draft.duration,
             "channel_id": draft.channel_id,
             "host_id": draft.host_id,
@@ -2059,7 +2052,7 @@ class Giveaways(commands.Cog):
         req = [int(x) for x in t['required_roles'].split(',')] if t['required_roles'] else []
         blk = [int(x) for x in t['blacklisted_roles'].split(',')] if t['blacklisted_roles'] else []
         ext = [int(x) for x in t['extra_entries'].split(',')] if t['extra_entries'] else []
-
+        win = [int(x) for x in t['winner_role_id'].split(',')] if t['winner_role_id'] else []
         return GiveawayDraft(
             guild_id=current_guild_id,
             channel_id=t['channel_id'] if is_same else interaction.channel.id,
@@ -2071,7 +2064,7 @@ class Giveaways(commands.Cog):
             required_behaviour=t['req_behaviour'],
             blacklisted_roles=blk if is_same else [],
             extra_entries=ext if is_same else [],
-            winner_role=t['winner_role_id'] if is_same else None,
+            winner_role=win if is_same else [],
             image=t['image'],
             thumbnail=t['thumbnail'],
             color=t['color']
