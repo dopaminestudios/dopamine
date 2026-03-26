@@ -2166,7 +2166,7 @@ class Giveaways(commands.Cog):
     @app_commands.check(mod_check)
     async def create(self, interaction: discord.Interaction):
         view = CreateChoose(self, interaction.user)
-        await interaction.response.send_message(view=view, ephemeral=True)
+        await interaction.response.send_message(view=view)
 
     @giveaway.command(name="template", description="Open the Giveaway Template Homepage.")
     @app_commands.check(mod_check)
