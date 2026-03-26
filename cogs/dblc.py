@@ -12,10 +12,12 @@ import os
 import io
 from PIL import Image, ImageDraw, ImageFont
 from collections import deque
-from config import BOLDFONT_PATH
+from config import BOLDFONT_PATH, API_TOKEN, HEARTBEAT_ID
 from dopamineframework.ext.path import framework_version
 from typing import Union
 from utils.log import LoggingManager
+from datetime import datetime, timedelta
+import requests
 
 class Dblc(commands.Cog):
     def __init__(self, bot):
@@ -28,6 +30,7 @@ class Dblc(commands.Cog):
         self.process = psutil.Process(os.getpid())
         self.process.cpu_percent(interval=None)
         self.current_cpu = 0.0
+        self.uptime = None
         self.cache_task.start()
 
     def cog_unload(self):
@@ -66,6 +69,27 @@ class Dblc(commands.Cog):
 
         except Exception as e:
             print(f"Critical error in cache_task: {e}")
+
+        date_90_days_ago = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
+
+        url = f"https://uptime.betterstack.com/api/v2/heartbeats/{HEARTBEAT_ID}/sla"
+        params = {
+            "from": date_90_days_ago
+        }
+        headers = {
+            "Authorization": f"Bearer {API_TOKEN}"
+        }
+
+        try:
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
+
+            data = response.json()
+            uptime = data['data']['attributes']['availability']
+            formatted_uptime = f"{uptime:.1f}"
+            self.uptime = f"{formatted_uptime}%"
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching data: {e}")
 
     @cache_task.before_loop
     async def before_cache_task(self):
@@ -374,7 +398,8 @@ class Dblc(commands.Cog):
                 f"> Heartbeat/WebSocket Latency: `{discord_latency}ms`\n\n"
                 f"> Average API Latency: `{avg_latency}ms` (over `{sample_count}` samples where each sample is average of 12 samples)\n\n"
                 f"> Connection Uptime: `{uptime_formatted}`\n"
-                f"> Process Uptime: `{proc_uptime}`\n\n"
+                f"> Process Uptime: `{proc_uptime}`\n"
+                f"> Uptime Percentage (Last 90 Days): `{self.uptime}`\n\n"
                 f"> CPU Usage: `{formatted_cpu_usage}%`\n"
                 f"> Memory Usage: `{memory_usage}`\n"
                 f"> {battery_status}"
