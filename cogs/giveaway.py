@@ -757,11 +757,6 @@ class MystuffPage(PrivateLayoutView):
             if t['host_id']: desc += f"**Giveaway Host:** <@{t['host_id']}>\n"
             if t['image']: desc += "**Embed Image:** Yes\n"
             if t['thumbnail']: desc += "**Embed Thumbnail:** Yes\n"
-            if t['color']:
-                if t['color'] == "discord.Color(0x944ae8)":
-                    desc += f"**Colour:** Default"
-                else:
-                    desc += f"**Colour:** {t['color']}"
 
             container.add_item(discord.ui.Section(discord.ui.TextDisplay(
                 f"### {t['prize']}\n{desc}"), accessory=edit_btn))
@@ -972,22 +967,12 @@ class BrowsePage(PrivateLayoutView):
                 desc = f"**Created by:** **{t['creator_name']}** in **{t['guild_name']}**\n**Template ID:** {t['template_id']}\n**Winners:** {t['winners']}\n**Duration:** {t['duration']}\n"
                 if t['image']: desc += "**Embed Image:** Yes\n"
                 if t['thumbnail']: desc += "**Embed Thumbnail:** Yes\n"
-                if t['color']:
-                    if t['color'] == "discord.Color(0x944ae8)":
-                        desc += f"**Colour:** Default"
-                    else:
-                        desc += f"**Colour:** {t['color']}"
                 title = f"### ➤ {t['prize']} - {t['usage_count']} uses"
             else:
                 desc = \
                     f"**Created by:** **{t['creator_name']}** in **{t['guild_name']}**\n**Template ID:** {t['template_id']}\n**Winners:** {t['winners']}\n**Duration:** {t['duration']}\n"
                 if t['channel_id']: desc += f"**Channel:** <#{t['channel_id']}>\n"
                 if t['host_id']: desc += f"**Giveaway Host:** <@{t['host_id']}>\n"
-                if t['color']:
-                    if t['color'] == "discord.Color(0x944ae8)":
-                        desc += f"**Colour:** Default"
-                    else:
-                        desc += f"**Colour:** {t['color']}"
                 title = f"### ➤ {t['prize']}"
 
             container.add_item(discord.ui.Section(discord.ui.TextDisplay(f"{title}\n{desc}"), accessory=use_btn))
