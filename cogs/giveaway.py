@@ -399,9 +399,7 @@ class GiveawayPreviewView(PrivateView):
     async def on_timeout(self):
         if self.message:
             try:
-                await self.message.edit(title="Giveaway preview expired",
-                                        description="This giveaway preview has expired.", view=None,
-                                        colour=discord.Colour.red())
+                await self.message.edit(content="This giveaway preview has expired.", embed=None, view=None)
             except discord.HTTPException:
                 pass
 
