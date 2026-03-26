@@ -914,22 +914,23 @@ class EditPage(PrivateLayoutView):
         await interaction.response.edit_message(view=view)
 
 class BrowsePage(PrivateLayoutView):
-    def __init__(self, cog, user, templates, guild_id, page=1, exclude_global=False, is_th: bool = False):
+    def __init__(self, cog, user, templates, guild_id, page=1, exclude_global=False, is_th: bool = False, container_header: str = None):
         super().__init__(user, timeout=None)
         self.cog = cog
         self.user = user
         self.templates = templates
         self.guild_id = guild_id
+        self.container_header = container_header
         self.page = page
         self.exclude_global = exclude_global
         self.per_page = 5
         self.filter_templates()
         self.total_pages = (len(self.filtered_templates) - 1) // self.per_page + 1 if self.filtered_templates else 1
         self.is_th = is_th
+        self.filtered_templates = []
         self.build_layout()
 
     def filter_templates(self):
-        self.filtered_templates = []
         if self.exclude_global:
             self.filtered_templates = [t for t in self.templates if t['creation_guild_id'] == self.guild_id]
         else:
@@ -941,8 +942,12 @@ class BrowsePage(PrivateLayoutView):
         count_text = f"{len(self.filtered_templates)} Total Templates"
         if self.exclude_global:
             count_text = f"{len(self.filtered_templates)} (Local Only)"
+        if not self.container_header:
+            text = f"## Browse — {count_text}"
+        else:
+            text = f"## {self.container_header}"
 
-        container.add_item((discord.ui.TextDisplay(f"## Browse — {count_text}")))
+        container.add_item((discord.ui.TextDisplay(text)))
         container.add_item(discord.ui.TextDisplay(
             "Browse Giveaway templates here. Use the buttons and dropdowns below to search, or sort."))
         container.add_item(discord.ui.Separator())
@@ -952,7 +957,7 @@ class BrowsePage(PrivateLayoutView):
         current = self.filtered_templates[start:end]
 
         if not current:
-            container.add_item(discord.ui.TextDisplay("No templates found."))
+            container.add_item(discord.ui.TextDisplay("*No templates found.*"))
 
         for t in current:
             use_btn = discord.ui.Button(label="Use", style=discord.ButtonStyle.primary,
@@ -1138,10 +1143,11 @@ class SearchModal(discord.ui.Modal):
 
         if self.mode == "prize":
             self.parent_view.filtered_templates = [t for t in self.parent_view.templates if query in t['prize'].lower()]
+            self.parent_view.container_header = f"Search results for '{query}'"
         else:
             self.parent_view.filtered_templates = [t for t in self.parent_view.templates if
                                                    query in t['template_id'].lower()]
-
+            self.parent_view.container_header = f"Search results for '{query}'"
         self.parent_view.page = 1
         self.parent_view.total_pages = (
                                                    len(self.parent_view.filtered_templates) - 1) // self.parent_view.per_page + 1 if self.parent_view.filtered_templates else 1
