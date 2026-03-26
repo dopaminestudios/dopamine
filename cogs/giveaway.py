@@ -924,10 +924,12 @@ class BrowsePage(PrivateLayoutView):
         self.page = page
         self.exclude_global = exclude_global
         self.per_page = 5
+        self.is_th = is_th
+        self.templates.sort(key=lambda x: x.get('usage_count', 0), reverse=True)
+        self.current_sort = 'popular'
+        self.filtered_templates = []
         self.filter_templates()
         self.total_pages = (len(self.filtered_templates) - 1) // self.per_page + 1 if self.filtered_templates else 1
-        self.is_th = is_th
-        self.filtered_templates = []
         self.build_layout()
 
     def filter_templates(self):
@@ -941,7 +943,7 @@ class BrowsePage(PrivateLayoutView):
         container = discord.ui.Container()
         count_text = f"{len(self.filtered_templates)} Total Templates"
         if self.exclude_global:
-            count_text = f"{len(self.filtered_templates)} (Local Only)"
+            count_text = f"{len(self.filtered_templates)} (Current Server Only)"
         if not self.container_header:
             text = f"## Browse — {count_text}"
         else:
@@ -970,7 +972,11 @@ class BrowsePage(PrivateLayoutView):
                 desc = f"**Created by:** **{t['creator_name']}** in **{t['guild_name']}**\n**Template ID:** {t['template_id']}\n**Winners:** {t['winners']}\n**Duration:** {t['duration']}\n"
                 if t['image']: desc += "**Embed Image:** Yes\n"
                 if t['thumbnail']: desc += "**Embed Thumbnail:** Yes\n"
-                if t['color']: desc += f"**Colour:** {t['color']}"
+                if t['color']:
+                    if t['color'] == "discord.Color(0x944ae8)":
+                        desc += f"**Colour:** Default"
+                    else:
+                        desc += f"**Colour:** {t['color']}"
                 title = f"### ➤ {t['prize']} - {t['usage_count']} uses"
             else:
                 desc = \
@@ -1020,12 +1026,21 @@ class BrowsePage(PrivateLayoutView):
         row.add_item(exclude_btn)
         container.add_item(row)
 
-        sort_dropdown = discord.ui.Select(placeholder="Sort by...", options=[
+        sort_options = [
             discord.SelectOption(label='Sort by Most Popular', value='popular'),
             discord.SelectOption(label='Sort by Least Popular', value='unpopular'),
             discord.SelectOption(label='Sort by Alphabetical Order', value='alpha'),
             discord.SelectOption(label='Sort by Reversed Alphabetical Order', value='revalpha')
-        ])
+        ]
+
+        for option in sort_options:
+            if option.value == self.current_sort:
+                option.default = True
+
+        sort_dropdown = discord.ui.Select(
+            placeholder="Sort by..." if not self.current_sort else None,
+            options=sort_options
+        )
         sort_dropdown.callback = self.sort_callback
 
         row = discord.ui.ActionRow()
@@ -1075,6 +1090,7 @@ class BrowsePage(PrivateLayoutView):
 
     async def sort_callback(self, interaction: discord.Interaction):
         val = interaction.data['values'][0]
+        self.current_sort = val
         if val == 'popular':
             self.templates.sort(key=lambda x: x['usage_count'], reverse=True)
         elif val == 'unpopular':
