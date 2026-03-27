@@ -351,7 +351,7 @@ class AFK(commands.Cog):
         if revert_nick and state and state.origin_guild_id:
             guild = self.bot.get_guild(state.origin_guild_id)
             if guild:
-                member = guild.get_member(user_id)
+                member = guild.get_member(user_id) or await guild.fetch_member(user_id)
                 if member:
                     try:
                         await member.edit(nick=state.old_nick, reason="AFK ended")
