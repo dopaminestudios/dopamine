@@ -14,6 +14,7 @@ from rapidfuzz import fuzz
 from config import ARSPDB_PATH
 from dopamineframework import PrivateLayoutView, mod_check
 from cogs.embed import UseEmbedPage
+import re
 
 
 @dataclass
@@ -1048,7 +1049,9 @@ class Autoresponse(commands.Cog):
             if record.match_mode == "exact":
                 matched = msg_text == trigger
             elif record.match_mode == "partial":
-                matched = trigger in msg_text
+                pattern = rf"\b{re.escape(trigger)}\b"
+                flags = re.IGNORECASE
+                matched = bool(re.search(pattern, content, flags=flags))
             elif record.match_mode == "fuzzy":
                 if msg_text and trigger:
                     score = fuzz.ratio(trigger, msg_text)
