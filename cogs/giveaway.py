@@ -13,6 +13,7 @@ from dopamineframework import PrivateLayoutView, PrivateView, mod_check
 
 from config import GDB_PATH
 from utils.time import get_duration_to_seconds, get_now_plus_seconds_unix
+from natsort import natsorted, ns
 
 ADJECTIVES = ["alpha", "beta", "delta", "sonic", "prime", "global", "pivot", "solid", "static", "linear", "vital", "core", "urban", "nomad"]
 NOUNS = ["node", "link", "point", "base", "grid", "zone", "unit", "flux", "pillar", "vector", "path", "shift", "pulse", "forge"]
@@ -1081,9 +1082,9 @@ class BrowsePage(PrivateLayoutView):
         elif val == 'unpopular':
             self.templates.sort(key=lambda x: x['usage_count'])
         elif val == 'alpha':
-            self.templates.sort(key=lambda x: x['prize'].lower())
+            self.templates = natsorted(self.templates, key=lambda x: x['prize'], alg=ns.IGNORECASE)
         elif val == 'revalpha':
-            self.templates.sort(key=lambda x: x['prize'].lower(), reverse=True)
+            self.templates = natsorted(self.templates, key=lambda x: x['prize'], alg=ns.IGNORECASE, reverse=True)
 
         self.page = 1
         self.filter_templates()

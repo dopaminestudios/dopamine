@@ -12,3 +12,4 @@ pytz==2025.2
 python-dotenv==1.2.1
 RapidFuzz==3.14.3
 setuptools==81.0.0
+natsort==8.4.0
