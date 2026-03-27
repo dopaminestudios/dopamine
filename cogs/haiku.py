@@ -11,11 +11,27 @@ from discord import app_commands
 from discord.ext import commands, tasks
 import pronouncing
 import syllapy
+import inflect
+
 from config import HDDB_PATH, HWDDB_PATH
 from dopamineframework import mod_check
 
 
 class HaikuDetector(commands.Cog):
+    SLANG_SYLLABLES = {
+        "lol": 3, "idk": 3, "lmao": 4, "rofl": 2, "omg": 3,
+        "wtf": 3, "brb": 3, "tbh": 3, "smh": 3, "afk": 3,
+        "btw": 3, "fr": 2, "ngl": 3, "rn": 2, "imo": 3
+    }
+
+    ABBREVIATIONS = {
+        "dr": "doctor", "mr": "mister", "mrs": "misses",
+        "st": "street", "rd": "road", "ave": "avenue",
+        "vs": "versus", "etc": "et cetera"
+    }
+
+    KNOWN_ACRONYMS = {"NASA", "NATO", "SCUBA", "LASER", "AWOL", "UNICEF", "OPEC", "GIF", "JPEG"}
+
     def __init__(self, bot):
         self.bot = bot
         self.haiku_word_cache: Dict[str, int] = {}
@@ -27,6 +43,8 @@ class HaikuDetector(commands.Cog):
         self.haiku_queue: "asyncio.Queue[discord.Message]" = asyncio.Queue()
         self._worker_tasks: List[asyncio.Task] = []
         self._recent_processed_messages: Deque[int] = deque(maxlen=500)
+
+        self.inflect_engine = inflect.engine()
 
     async def cog_load(self):
         await self.init_pools()
@@ -162,47 +180,56 @@ class HaikuDetector(commands.Cog):
             finally:
                 self.haiku_queue.task_done()
 
-    async def get_word_syllables(self, word: str) -> int:
-        if word.isupper() or re.match(r'^([A-Z]\.)+[A-Z]?$', word):
-            return len(re.sub(r'[^A-Z]', '', word.upper()))
-
-        word = word.lower().strip().strip(".:;?!\"'()")
+    async def get_word_syllables(self, word: str, original_word: str = "") -> int:
         if not word:
             return 0
 
-        cached = self.haiku_word_cache.get(word)
+        if not original_word:
+            original_word = word
+
+        word_lower = word.lower().strip().strip(".:;?!\"'()")
+
+        if word_lower in self.SLANG_SYLLABLES:
+            return self.SLANG_SYLLABLES[word_lower]
+
+        cached = self.haiku_word_cache.get(word_lower)
         if cached is not None:
             return cached
 
-        phones = pronouncing.phones_for_word(word)
+        if original_word.isupper() and len(original_word) > 1 and original_word not in self.KNOWN_ACRONYMS:
+            total_syllables = sum(3 if char.lower() == 'w' else 1 for char in original_word if char.isalpha())
+            return max(1, total_syllables)
+
+        phones = pronouncing.phones_for_word(word_lower)
         if phones:
             return pronouncing.syllable_count(phones[0])
 
-        syll_count = syllapy.count(word)
-        if syll_count > 0 and len(word) < 10:
+        syll_count = syllapy.count(word_lower)
+        if syll_count > 0 and len(word_lower) < 10:
             return syll_count
 
         count = 0
         vowels = "aeiouy"
+        temp_word = word_lower
 
-        if word.endswith("ed"):
-            if len(word) > 3 and word[-3] in "td":
+        if temp_word.endswith("ed"):
+            if len(temp_word) > 3 and temp_word[-3] in "td":
                 pass
             else:
-                word = word[:-2] + "d"
+                temp_word = temp_word[:-2] + "d"
 
-        if word.endswith("e"):
-            if not (word.endswith("le") and len(word) > 2 and word[-3] not in vowels):
-                word = word[:-1]
+        if temp_word.endswith("e"):
+            if not (temp_word.endswith("le") and len(temp_word) > 2 and temp_word[-3] not in vowels):
+                temp_word = temp_word[:-1]
 
-        vowel_runs = re.findall(r'[aeiouy]+', word)
+        vowel_runs = re.findall(r'[aeiouy]+', temp_word)
         for run in vowel_runs:
             count += 1
             if len(run) > 1:
                 if run in ["ia", "eo", "io", "uo", "oa", "ua", "au", "ou", "ai"]:
                     count += 1
 
-        if word.endswith(("ism", "ier", "ian", "uity", "ium", "ogy", "ally")):
+        if temp_word.endswith(("ism", "ier", "ian", "uity", "ium", "ogy", "ally")):
             count += 1
 
         return max(1, count)
@@ -229,12 +256,11 @@ class HaikuDetector(commands.Cog):
     async def process_content_to_syllables(self, message: discord.Message) -> List[Tuple[str, int]]:
         content = message.content
 
+        content = re.sub(r'```.*?```', '', content, flags=re.DOTALL)
+        content = re.sub(r'`.*?`', '', content)
+
         symbol_map = {
-            "$": " dollar ",
-            "&": " and ",
-            "@": " at ",
-            "%": " percent ",
-            "+": " plus "
+            "$": " dollar ", "&": " and ", "@": " at ", "%": " percent ", "+": " plus "
         }
         for symbol, replacement in symbol_map.items():
             content = content.replace(symbol, replacement)
@@ -249,19 +275,32 @@ class HaikuDetector(commands.Cog):
         content = re.sub(r'<a?:\w+:\d+>', '', content)
         content = await self.remove_urls(content)
 
+        def replace_number(match):
+            try:
+                words = self.inflect_engine.number_to_words(match.group())
+                return f" {words.replace('-', ' ')} "
+            except Exception:
+                return " "
+
+        content = re.sub(r'\b\d+(?:[.,]\d+)?\b', replace_number, content)
+
         clean_content = re.sub(r'[-_–—]', ' ', content)
         words = clean_content.split()
 
         word_data = []
         for word in words:
-            if re.match(r'^([A-Za-z]\.)+[A-Za-z]?$', word):
-                clean_word = word
-            else:
-                clean_word = re.sub(r'[^\w\s\']', '', word)
+            clean_word = re.sub(r'[^\w\s\']', '', word)
 
             if clean_word:
-                count = await self.get_word_syllables(clean_word)
-                word_data.append((word, count))
+                lower_word = clean_word.lower()
+                if lower_word in self.ABBREVIATIONS:
+                    expanded = self.ABBREVIATIONS[lower_word].split()
+                    for exp_word in expanded:
+                        count = await self.get_word_syllables(exp_word, original_word=exp_word)
+                        word_data.append((exp_word, count))
+                else:
+                    count = await self.get_word_syllables(clean_word, original_word=word)
+                    word_data.append((word, count))
 
         return word_data
 
@@ -293,7 +332,6 @@ class HaikuDetector(commands.Cog):
 
         return None
 
-
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         if message.guild is None or message.author.bot:
@@ -303,6 +341,17 @@ class HaikuDetector(commands.Cog):
             return
 
         if message.id in self._recent_processed_messages:
+            return
+
+        content = message.content.strip()
+
+        if content.startswith(('/', '!', '?', '.', '-', '$', '&', '%', '~')):
+            return
+
+        if re.search(r'(.)\1{4,}', content):
+            return
+
+        if any(len(word) > 25 for word in content.split()):
             return
 
         await self.haiku_queue.put(message)
