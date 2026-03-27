@@ -160,7 +160,7 @@ class AutoresponseDashboard(PrivateLayoutView):
         container.add_item(discord.ui.TextDisplay("## Autoresponse Dashboard"))
         container.add_item(discord.ui.TextDisplay("Reply to messages automatically that contain specific letters or words with a text message, link, or embed."))
         container.add_item(discord.ui.Separator())
-        container.add_item(discord.ui.TextDisplay("### Match Modes:\n* **Exact Match:** Matches the string exactly.\n* **Partial Match:** Triggers if the string is anywhere in the message.\n* **Fuzzy Matching:** Triggers response based on how much a specific string matches the message. It works on a percentage score. Default is 75%, but you can customise it for each Autoresponse!"))
+        container.add_item(discord.ui.TextDisplay("### Match Modes:\n* **Exact Match:** Matches the string exactly.\n* **Partial Match:** Triggers if the string is anywhere in the message.\n* **Fuzzy Match:** Triggers response based on how much a specific string matches the message. It works on a percentage score. Default is 75%, but you can customise it for each Autoresponse!"))
         container.add_item(discord.ui.TextDisplay("### Variables:\n* **User Variables (User who triggered the response):** `{author.mention}`, `{author.name}`, `{author.display_name}`, and `{author.id}`.\n* **Channel Variables (Channel where response was triggered):** `{channel.mention}`, `{channel.name}`, and `{channel.id}`.\n* **Guild Variables (Guild is the Discord internal word for server):** `{guild.name}`, `{guild.member_count}`, and `{guild.id}`."))
         create_btn = discord.ui.Button(label="Create", style=discord.ButtonStyle.primary)
         manage_btn = discord.ui.Button(label="Manage & Edit", style=discord.ButtonStyle.secondary)
