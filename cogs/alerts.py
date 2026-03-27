@@ -223,7 +223,7 @@ class Alerts(commands.Cog):
             color=0xFFFFFF
         )
         embed.set_footer(text=f"You are #{position} to read this alert!")
-        embed.set_author(name="Alert from the Developer at Dopamine Studios")
+        embed.set_author(name="Alert from the Developer")
         embed.timestamp = datetime.fromtimestamp(alert.created_at)
         await interaction.response.send_message(embed=embed)
 
