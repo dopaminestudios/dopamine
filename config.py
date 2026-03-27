@@ -12,7 +12,9 @@ LOGGING_DEBUG_MODE = os.getenv("LOGGING_DEBUG_MODE", False)
 HEARTBEAT_URL = os.getenv("HEARTBEAT_URL", None)
 if not TOKEN:
     raise SystemExit("Set DISCORD_TOKEN in .env")
-DBL_TOKEN = os.getenv("DBL_TOKEN")
+DBL_TOKEN = os.getenv("DBL_TOKEN", None)
+API_TOKEN = os.getenv("API_TOKEN", None)
+HEARTBEAT_ID = os.getenv("HEARTBEAT_ID", None)
 
 # Base directory
 BASE_DIR = Path(__file__).resolve().parent

@@ -12,7 +12,7 @@ import os
 import io
 from PIL import Image, ImageDraw, ImageFont
 from collections import deque
-from config import BOLDFONT_PATH
+from config import BOLDFONT_PATH, API_TOKEN, HEARTBEAT_ID
 from dopamineframework.ext.path import framework_version
 from typing import Union
 from utils.log import LoggingManager
@@ -66,6 +66,8 @@ class Dblc(commands.Cog):
 
         except Exception as e:
             print(f"Critical error in cache_task: {e}")
+
+
 
     @cache_task.before_loop
     async def before_cache_task(self):
@@ -436,26 +438,32 @@ class Dblc(commands.Cog):
 
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="invite", description="Get the official links for the bot")
+    @app_commands.command(name="invite", description="Get the official links for Dopamine")
     async def invite(self, interaction: discord.Interaction):
-        embed = discord.Embed(
-            title="Invite Me",
-            description=(
-                "The Premium Experience, minus the Paywalls. "
-                "Invite me today to escape corporate slop.\n\n"
-                "[Invite](https://discord.com/oauth2/authorize?client_id=1411266382380924938) • "
-                "[Website](https://dopamine-bot.pages.dev) • "
-                "[Support](https://discord.gg/yfzDXvk7QU) • "
-                "[Bot Status](https://dopamine.betteruptime.com/)"
-            ),
-            color=discord.Color.from_str("#944ae8")
-        )
 
-        if self.bot.user.avatar:
-            embed.set_thumbnail(url=self.bot.user.avatar.url)
+        view = discord.ui.LayoutView()
+        invite_button = discord.ui.Button(label="Invite", style=discord.ButtonStyle.link,
+                                          url="https://discord.com/oauth2/authorize?client_id=1411266382380924938")
+        website_button = discord.ui.Button(label="Website", style=discord.ButtonStyle.link,
+                                          url="https://dopamine-bot.pages.dev")
+        support_button = discord.ui.Button(label="Support", style=discord.ButtonStyle.link,
+                                           url="https://discord.gg/yfzDXvk7QU")
+        status_button = discord.ui.Button(label="Bot Status", style=discord.ButtonStyle.link,
+                                           url="https://dopamine.betteruptime.com")
+        row = discord.ui.ActionRow()
+        row.add_item(invite_button)
+        row.add_item(website_button)
+        row.add_item(support_button)
+        row.add_item(status_button)
 
+        container = discord.ui.Container()
+        container.add_item(discord.ui.TextDisplay("## Invite Me"))
+        container.add_item(discord.ui.TextDisplay( "The Premium Experience, minus the Paywalls.\nInvite me today to experience the best Giveaway, Moderation, and Utility bot experience on Discord."))
+        container.add_item(row)
 
-        await interaction.response.send_message(embed=embed)
+        view.add_item(container)
+
+        await interaction.response.send_message(view=view)
 
     @app_commands.command(name="vote", description="Get the link to vote for Dopamine on top.gg")
     async def vote(self, interaction: discord.Interaction):

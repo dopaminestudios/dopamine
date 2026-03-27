@@ -34,7 +34,7 @@ class GiveawayDraft:
     required_behaviour: int = 0
     blacklisted_roles: List[int] = None
     extra_entries: List[int] = None
-    winner_role: Optional[int] = None
+    winner_role: List[int] = None
     image: Optional[str] = None
     thumbnail: Optional[str] = None
     color: str = "discord.Color(0x944ae8)"
@@ -113,7 +113,7 @@ class GiveawayEditSelect(discord.ui.Select):
                                  description="Roles required to participate."),
             discord.SelectOption(label="8. Required Roles Behaviour", value="behavior",
                                  description="The behavior of the required roles feature."),
-            discord.SelectOption(label="9. Winner Role", value="winner_role", description="Role given to winners."),
+            discord.SelectOption(label="9. Winner Roles", value="winner_role", description="Roles given to winners."),
             discord.SelectOption(label="10. Blacklisted Roles", value="blacklist",
                                  description="Roles that cannot participate."),
             discord.SelectOption(label="11. Image", value="image",
@@ -154,7 +154,7 @@ class GiveawayEditSelect(discord.ui.Select):
 
         elif value == "winner_role":
             new_view = WinnerRoleSelectView("winner_role", "Winner Role", self.draft, self.parent_view)
-            msg = "Choose role to be given to winner(s):"
+            msg = "Choose roles to be given to winner(s):"
 
         elif value == "blacklist":
             new_view = RoleSelectView("blacklist", "Blacklisted Roles", self.draft, self.parent_view)
@@ -399,9 +399,7 @@ class GiveawayPreviewView(PrivateView):
     async def on_timeout(self):
         if self.message:
             try:
-                await self.message.edit(title="Giveaway preview expired",
-                                        description="This giveaway preview has expired.", view=None,
-                                        colour=discord.Colour.red())
+                await self.message.edit(content="This giveaway preview has expired.", embed=None, view=None)
             except discord.HTTPException:
                 pass
 
@@ -511,9 +509,6 @@ class RoleSelectView(discord.ui.View):
         elif self.key == "blacklist":
             self.draft.blacklisted_roles = role_ids
             text = "Blacklisted Roles"
-        elif self.key == "winner_role":
-            self.draft.winner_role = role_ids[0]
-            text = "Winner Role"
 
         new_embed = self.parent_view.cog.create_giveaway_embed(self.draft)
         await self.parent_view.message.edit(embed=new_embed)
@@ -528,24 +523,15 @@ class WinnerRoleSelectView(discord.ui.View):
         self.key = key
         self.draft = draft
         self.parent_view = parent_view
-        self.select = discord.ui.RoleSelect(placeholder=f"Pick {label}...", min_values=1, max_values=1)
+        self.select = discord.ui.RoleSelect(placeholder=f"Pick {label}...", min_values=1, max_values=10)
         self.select.callback = self.callback
         self.add_item(self.select)
 
     async def callback(self, interaction: discord.Interaction):
         role_ids = [role.id for role in self.select.values]
         text = None
-        if self.key == "extra":
-            self.draft.extra_entries = role_ids
-            text = "Extra Entry Roles"
-        elif self.key == "required":
-            self.draft.required_roles = role_ids
-            text = "Required Roles"
-        elif self.key == "blacklist":
-            self.draft.blacklisted_roles = role_ids
-            text = "Blacklisted Roles"
-        elif self.key == "winner_role":
-            self.draft.winner_role = role_ids[0]
+        if self.key == "winner_role":
+            self.draft.winner_role = role_ids
             text = "Winner Role"
 
         new_embed = self.parent_view.cog.create_giveaway_embed(self.draft)
@@ -771,11 +757,6 @@ class MystuffPage(PrivateLayoutView):
             if t['host_id']: desc += f"**Giveaway Host:** <@{t['host_id']}>\n"
             if t['image']: desc += "**Embed Image:** Yes\n"
             if t['thumbnail']: desc += "**Embed Thumbnail:** Yes\n"
-            if t['color']:
-                if t['color'] == "discord.Color(0x944ae8)":
-                    desc += f"**Colour:** Default"
-                else:
-                    desc += f"**Colour:** {t['color']}"
 
             container.add_item(discord.ui.Section(discord.ui.TextDisplay(
                 f"### {t['prize']}\n{desc}"), accessory=edit_btn))
@@ -928,22 +909,25 @@ class EditPage(PrivateLayoutView):
         await interaction.response.edit_message(view=view)
 
 class BrowsePage(PrivateLayoutView):
-    def __init__(self, cog, user, templates, guild_id, page=1, exclude_global=False, is_th: bool = False):
+    def __init__(self, cog, user, templates, guild_id, page=1, exclude_global=False, is_th: bool = False, container_header: str = None):
         super().__init__(user, timeout=None)
         self.cog = cog
         self.user = user
         self.templates = templates
         self.guild_id = guild_id
+        self.container_header = container_header
         self.page = page
         self.exclude_global = exclude_global
         self.per_page = 5
+        self.is_th = is_th
+        self.templates.sort(key=lambda x: x.get('usage_count', 0), reverse=True)
+        self.current_sort = 'popular'
+        self.filtered_templates = []
         self.filter_templates()
         self.total_pages = (len(self.filtered_templates) - 1) // self.per_page + 1 if self.filtered_templates else 1
-        self.is_th = is_th
         self.build_layout()
 
     def filter_templates(self):
-        self.filtered_templates = []
         if self.exclude_global:
             self.filtered_templates = [t for t in self.templates if t['creation_guild_id'] == self.guild_id]
         else:
@@ -954,9 +938,13 @@ class BrowsePage(PrivateLayoutView):
         container = discord.ui.Container()
         count_text = f"{len(self.filtered_templates)} Total Templates"
         if self.exclude_global:
-            count_text = f"{len(self.filtered_templates)} (Local Only)"
+            count_text = f"{len(self.filtered_templates)} (Current Server Only)"
+        if not self.container_header:
+            text = f"## Browse — {count_text}"
+        else:
+            text = f"## {self.container_header}"
 
-        container.add_item((discord.ui.TextDisplay(f"## Browse — {count_text}")))
+        container.add_item((discord.ui.TextDisplay(text)))
         container.add_item(discord.ui.TextDisplay(
             "Browse Giveaway templates here. Use the buttons and dropdowns below to search, or sort."))
         container.add_item(discord.ui.Separator())
@@ -966,7 +954,7 @@ class BrowsePage(PrivateLayoutView):
         current = self.filtered_templates[start:end]
 
         if not current:
-            container.add_item(discord.ui.TextDisplay("No templates found."))
+            container.add_item(discord.ui.TextDisplay("*No templates found.*"))
 
         for t in current:
             use_btn = discord.ui.Button(label="Use", style=discord.ButtonStyle.primary,
@@ -979,18 +967,12 @@ class BrowsePage(PrivateLayoutView):
                 desc = f"**Created by:** **{t['creator_name']}** in **{t['guild_name']}**\n**Template ID:** {t['template_id']}\n**Winners:** {t['winners']}\n**Duration:** {t['duration']}\n"
                 if t['image']: desc += "**Embed Image:** Yes\n"
                 if t['thumbnail']: desc += "**Embed Thumbnail:** Yes\n"
-                if t['color']: desc += f"**Colour:** {t['color']}"
                 title = f"### ➤ {t['prize']} - {t['usage_count']} uses"
             else:
                 desc = \
                     f"**Created by:** **{t['creator_name']}** in **{t['guild_name']}**\n**Template ID:** {t['template_id']}\n**Winners:** {t['winners']}\n**Duration:** {t['duration']}\n"
                 if t['channel_id']: desc += f"**Channel:** <#{t['channel_id']}>\n"
                 if t['host_id']: desc += f"**Giveaway Host:** <@{t['host_id']}>\n"
-                if t['color']:
-                    if t['color'] == "discord.Color(0x944ae8)":
-                        desc += f"**Colour:** Default"
-                    else:
-                        desc += f"**Colour:** {t['color']}"
                 title = f"### ➤ {t['prize']}"
 
             container.add_item(discord.ui.Section(discord.ui.TextDisplay(f"{title}\n{desc}"), accessory=use_btn))
@@ -1029,12 +1011,21 @@ class BrowsePage(PrivateLayoutView):
         row.add_item(exclude_btn)
         container.add_item(row)
 
-        sort_dropdown = discord.ui.Select(placeholder="Sort by...", options=[
+        sort_options = [
             discord.SelectOption(label='Sort by Most Popular', value='popular'),
             discord.SelectOption(label='Sort by Least Popular', value='unpopular'),
             discord.SelectOption(label='Sort by Alphabetical Order', value='alpha'),
             discord.SelectOption(label='Sort by Reversed Alphabetical Order', value='revalpha')
-        ])
+        ]
+
+        for option in sort_options:
+            if option.value == self.current_sort:
+                option.default = True
+
+        sort_dropdown = discord.ui.Select(
+            placeholder="Sort by..." if not self.current_sort else None,
+            options=sort_options
+        )
         sort_dropdown.callback = self.sort_callback
 
         row = discord.ui.ActionRow()
@@ -1084,6 +1075,7 @@ class BrowsePage(PrivateLayoutView):
 
     async def sort_callback(self, interaction: discord.Interaction):
         val = interaction.data['values'][0]
+        self.current_sort = val
         if val == 'popular':
             self.templates.sort(key=lambda x: x['usage_count'], reverse=True)
         elif val == 'unpopular':
@@ -1152,10 +1144,11 @@ class SearchModal(discord.ui.Modal):
 
         if self.mode == "prize":
             self.parent_view.filtered_templates = [t for t in self.parent_view.templates if query in t['prize'].lower()]
+            self.parent_view.container_header = f"Search results for '{query}'"
         else:
             self.parent_view.filtered_templates = [t for t in self.parent_view.templates if
                                                    query in t['template_id'].lower()]
-
+            self.parent_view.container_header = f"Search results for '{query}'"
         self.parent_view.page = 1
         self.parent_view.total_pages = (
                                                    len(self.parent_view.filtered_templates) - 1) // self.parent_view.per_page + 1 if self.parent_view.filtered_templates else 1
@@ -1692,7 +1685,7 @@ class Giveaways(commands.Cog):
                     req_behaviour INTEGER,
                     blacklisted_roles TEXT,
                     extra_entries TEXT,
-                    winner_role_id INTEGER,
+                    winner_role_id TEXT,
                     image TEXT,
                     thumbnail TEXT,
                     color TEXT,
@@ -1833,28 +1826,31 @@ class Giveaways(commands.Cog):
                 mention_str = ", ".join([f"<@{w}>" for w in winners])
                 await channel.send(f"🎉 Congratulations to: {mention_str} for winning **{g['prize']}!**")
 
-                winner_role_id = g.get('winner_role_id')
-                if winner_role_id:
-                    role = guild.get_role(winner_role_id)
+                winner_role_ids = [int(r) for r in g['winner_role_id'].split(",")] if g['winner_role_id'] else []
 
-                    async def chunk_list(lst, n):
-                        for i in range(0, len(lst), n):
-                            yield lst[i:i + n]
 
-                    if role:
-                        for chunk in chunk_list(winners, 5):
-                            for member_id in chunk:
-                                member = guild.get_member(member_id) or await guild.fetch_member(member_id)
-                                if member:
-                                    try:
-                                        await member.add_roles(role, reason="Giveaway Winner")
-                                    except discord.HTTPException:
-                                        pass
+                async def chunk_list(lst, n):
+                    for i in range(0, len(lst), n):
+                        yield lst[i:i + n]
 
-                            await asyncio.sleep(1.5)
+                if winner_role_ids:
+                    for role_id in winner_role_ids:
+                        role = guild.get_role(role_id)
+
+                        if role:
+                            for chunk in chunk_list(winners, 5):
+                                for member_id in chunk:
+                                    member = guild.get_member(member_id) or await guild.fetch_member(member_id)
+                                    if member:
+                                        try:
+                                            await member.add_roles(role, reason="Giveaway Winner")
+                                        except discord.HTTPException:
+                                            pass
+
+                                await asyncio.sleep(1.5)
 
             except Exception:
-                pass
+                return
 
     async def mark_as_ended(self, giveaway_id: int, guild_id: int, whichone: str):
         if whichone == 'giveaway_cache':
@@ -1914,8 +1910,8 @@ class Giveaways(commands.Cog):
                 colour=embed_color)
 
         if draft.winner_role:
-            role_mentions = ", ".join([f"<@&{r}>" for r in draft.required_roles])
-            embed.add_field(name="Winners' Role", value=f"Winner(s) will receive the following role: {role_mentions}", inline=False)
+            role_mentions = ", ".join([f"<@&{r}>" for r in draft.winner_role])
+            embed.add_field(name="Winners' Roles", value=f"Winner(s) will receive the following role(s): {role_mentions}", inline=False)
         if draft.required_roles:
             role_mentions = ", ".join([f"<@&{r}>" for r in draft.required_roles])
             mode = "all of the following" if draft.required_behaviour == 0 else "one of the following"
@@ -1937,6 +1933,7 @@ class Giveaways(commands.Cog):
         req_roles = ",".join(map(str, draft.required_roles)) if draft.required_roles else ""
         black_roles = ",".join(map(str, draft.blacklisted_roles)) if draft.blacklisted_roles else ""
         extra_roles = ",".join(map(str, draft.extra_entries)) if draft.extra_entries else ""
+        winner_roles = ",".join(map(str, draft.winner_role)) if draft.winner_role else ""
 
         data = {
             "guild_id": draft.guild_id,
@@ -1944,7 +1941,7 @@ class Giveaways(commands.Cog):
             "channel_id": draft.channel_id,
             "message_id": message_id,
             "prize": draft.prize,
-            "winners_count": draft.winners,
+            "winners_count": winner_roles,
             "end_time": end_time,
             "host_id": draft.host_id,
             "required_roles": req_roles,
@@ -2000,13 +1997,14 @@ class Giveaways(commands.Cog):
         req_roles = ",".join(map(str, draft.required_roles)) if draft.required_roles else ""
         black_roles = ",".join(map(str, draft.blacklisted_roles)) if draft.blacklisted_roles else ""
         extra_roles = ",".join(map(str, draft.extra_entries)) if draft.extra_entries else ""
+        winner_roles = ",".join(map(str, draft.winner_role)) if draft.winner_role else ""
 
         data = {
             "template_id": template_id,
             "creator_id": interaction.user.id,
             "creation_guild_id": interaction.guild.id,
             "prize": draft.prize,
-            "winners": draft.winners,
+            "winners": winner_roles,
             "duration": draft.duration,
             "channel_id": draft.channel_id,
             "host_id": draft.host_id,
@@ -2059,7 +2057,7 @@ class Giveaways(commands.Cog):
         req = [int(x) for x in t['required_roles'].split(',')] if t['required_roles'] else []
         blk = [int(x) for x in t['blacklisted_roles'].split(',')] if t['blacklisted_roles'] else []
         ext = [int(x) for x in t['extra_entries'].split(',')] if t['extra_entries'] else []
-
+        win = [int(x) for x in t['winner_role_id'].split(',')] if t['winner_role_id'] else []
         return GiveawayDraft(
             guild_id=current_guild_id,
             channel_id=t['channel_id'] if is_same else interaction.channel.id,
@@ -2071,7 +2069,7 @@ class Giveaways(commands.Cog):
             required_behaviour=t['req_behaviour'],
             blacklisted_roles=blk if is_same else [],
             extra_entries=ext if is_same else [],
-            winner_role=t['winner_role_id'] if is_same else None,
+            winner_role=win if is_same else [],
             image=t['image'],
             thumbnail=t['thumbnail'],
             color=t['color']
@@ -2175,7 +2173,7 @@ class Giveaways(commands.Cog):
     @app_commands.check(mod_check)
     async def create(self, interaction: discord.Interaction):
         view = CreateChoose(self, interaction.user)
-        await interaction.response.send_message(view=view, ephemeral=True)
+        await interaction.response.send_message(view=view)
 
     @giveaway.command(name="template", description="Open the Giveaway Template Homepage.")
     @app_commands.check(mod_check)
@@ -2291,7 +2289,7 @@ class Giveaways(commands.Cog):
 
         body_content = (f"Are you sure you want to:\n"
                         f"* Re-roll this giveaway to pick **{winners}** new winners\n"
-                        f"* {'Preserve old winners and their roles' if preserve_winners else f'over-write **{winners}** old winners and remove their winner role'}\n"
+                        f"* {'Preserve old winners and their roles' if preserve_winners else f'override **{winners}** old winners and remove their winner role'}\n"
                         f"{f'* Give **{winners}** the winner role' if g[1] else ''}")
 
         view = ConfirmationViewOld("Pending Confirmation", body_content, interaction.user)
@@ -2316,14 +2314,14 @@ class Giveaways(commands.Cog):
                                       (giveaway_id,)) as cursor:
                     prev_rows = await cursor.fetchall()
                     if not prev_rows:
-                        return await interaction.edit_original_response("This giveaway hasn't ended yet!",
+                        return await interaction.followup.send_response("This giveaway hasn't ended yet!",
                                                                         ephemeral=True)
                     prev_winners = [r[0] for r in prev_rows]
 
                 eligible_pool = [uid for uid in pool if uid not in prev_winners]
 
                 if not eligible_pool:
-                    return await interaction.edit_original_response("No new participants available to pick from!",
+                    return await interaction.followup.send_response("No new participants available to pick from!",
                                                                     ephemeral=True)
 
                 new_picks = random.sample(eligible_pool, min(len(eligible_pool), winners))

@@ -160,7 +160,7 @@ class AutoresponseDashboard(PrivateLayoutView):
         container.add_item(discord.ui.TextDisplay("## Autoresponse Dashboard"))
         container.add_item(discord.ui.TextDisplay("Reply to messages automatically that contain specific letters or words with a text message, link, or embed."))
         container.add_item(discord.ui.Separator())
-        container.add_item(discord.ui.TextDisplay("### Match Modes:\n* **Exact Match:** Matches the string exactly.\n* **Partial Match:** Triggers if the string is anywhere in the message.\n* **Fuzzy Matching:** Triggers response based on how much a specific string matches the message. It works on a percentage score. Default is 75%, but you can customise it for each Autoresponse!"))
+        container.add_item(discord.ui.TextDisplay("### Match Modes:\n* **Exact Match:** Matches the string exactly.\n* **Partial Match:** Triggers if the string is anywhere in the message.\n* **Fuzzy Match:** Triggers response based on how much a specific string matches the message. It works on a percentage score. Default is 75%, but you can customise it for each Autoresponse!"))
         container.add_item(discord.ui.TextDisplay("### Variables:\n* **User Variables (User who triggered the response):** `{author.mention}`, `{author.name}`, `{author.display_name}`, and `{author.id}`.\n* **Channel Variables (Channel where response was triggered):** `{channel.mention}`, `{channel.name}`, and `{channel.id}`.\n* **Guild Variables (Guild is the Discord internal word for server):** `{guild.name}`, `{guild.member_count}`, and `{guild.id}`."))
         create_btn = discord.ui.Button(label="Create", style=discord.ButtonStyle.primary)
         manage_btn = discord.ui.Button(label="Manage & Edit", style=discord.ButtonStyle.secondary)
@@ -556,7 +556,8 @@ class FinalStep(PrivateLayoutView):
         self.clear_items()
         container = discord.ui.Container()
 
-        container.add_item(discord.ui.TextDisplay(f"### Step 4: Finalise the Autoresponse by configuring the below modes:"))
+        container.add_item(discord.ui.TextDisplay(f"### Step 4: Finalise the Autoresponse by configuring the settings below."))
+        container.add_item(discord.ui.Separator())
         case_btn = discord.ui.Button(label=f"{'Disable' if self.draft.get('case_sensitive', False) else 'Enable'} Case Sensitivity",
                                      style=discord.ButtonStyle.secondary if self.draft.get('case_sensitive', False) else discord.ButtonStyle.primary)
         mode_labels = {
@@ -574,12 +575,21 @@ class FinalStep(PrivateLayoutView):
         )
         edit_fuzzy_btn = discord.ui.Button(label="Edit Fuzzy Mode Score",
                                            style=discord.ButtonStyle.secondary)
-        row = discord.ui.ActionRow()
-        row.add_item(case_btn)
-        row.add_item(mode_btn)
+        section = discord.ui.Section(discord.ui.TextDisplay("* **Case Sensitivity:** Whether the case (uppercase or lowercase) should match exactly with the trigger string."), accessory=case_btn)
+        container.add_item(section)
+
+        section = discord.ui.Section(discord.ui.TextDisplay(
+            "* **Mode:** The Match Mode for the Autoresponse. Pick between Exact, Partial, and Fuzzy. For more info, refer to the Autoresponse dashboard."),
+                                    accessory=mode_btn)
+        container.add_item(section)
+
+        section = discord.ui.Section(discord.ui.TextDisplay(
+            "* **Fuzzy Score:** The fuzzy score is a number between 0 and 100 that tells you how similar the message is to the trigger string, where 100 is a perfect match and 0 means they have nothing in common. To avoid spam, the lowest number you can pick is **25**."),
+            accessory=edit_fuzzy_btn)
+
         if self.draft.get("match_mode", "exact") == "fuzzy":
-            row.add_item(edit_fuzzy_btn)
-        container.add_item(row)
+            container.add_item(section)
+
 
         container.add_item(discord.ui.Separator())
 

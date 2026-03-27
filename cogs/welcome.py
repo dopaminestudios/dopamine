@@ -46,7 +46,7 @@ class WelcomeTextModal(discord.ui.Modal, title="Customise Welcome Text"):
     message = discord.ui.TextInput(
         label="Message Content",
         style=discord.TextStyle.paragraph,
-        placeholder="Welcome to {server.name}, {member.mention}!",
+        placeholder="{member.mention} Welcome to **{server.name}**!",
         required=True,
         max_length=2000
     )
@@ -54,7 +54,7 @@ class WelcomeTextModal(discord.ui.Modal, title="Customise Welcome Text"):
     def __init__(self, current_msg: str, callback_func):
         super().__init__()
         self.callback_func = callback_func
-        self.message.default = current_msg or "Welcome to {server.name}, {member.mention}!"
+        self.message.default = current_msg or "{member.mention} Welcome to **{server.name}**!"
 
 
     async def on_submit(self, interaction: discord.Interaction):
@@ -90,7 +90,7 @@ class WelcomeImageModal(discord.ui.Modal, title="Customise Welcome Card"):
         super().__init__()
         self.callback_func = callback_func
         self.img_url.default = data.get("image_url") or ""
-        self.line1.default = data.get("image_line1") or "Welcome {member.name}"
+        self.line1.default = data.get("image_line1") or "Welcome {member.display_name}"
         self.line2.default = data.get("image_line2") or "You are our {position} member!"
         self.text_color.default = data.get("embed_color") or "#FFFFFF"
 
@@ -189,7 +189,7 @@ class DestructiveConfirmationView(PrivateLayoutView):
             await self.update_view(interaction, "Timed Out", discord.Color(0xdf5046))
 
 
-class CV2Helper(PrivateLayoutView):
+class WelcomeDashboardView(PrivateLayoutView):
     def __init__(self, cog, guild_id: int, user: discord.Member):
         super().__init__(user=user, timeout=None)
         self.cog = cog
@@ -259,7 +259,7 @@ class CV2Helper(PrivateLayoutView):
         content, file = None, None
 
         if self.data.get("show_text", 1):
-            raw_msg = self.data.get("custom_message") or "Welcome to **{server.name}**, {member.mention}!"
+            raw_msg = self.data.get("custom_message") or "{member.mention} Welcome to **{server.name}**!"
             content = f"**TEST:** {raw_msg.format(member=bot_member, server=guild, position=pos_str)}"
 
         if self.data.get("show_image", 1):
@@ -396,11 +396,11 @@ class CV2Helper(PrivateLayoutView):
                 btn_text_config = discord.ui.Button(label=f"Customise", style=discord.ButtonStyle.primary)
                 btn_text_config.callback = self.open_text_modal
 
-                curr_text = self.data.get("custom_message") or "Welcome to **{server.name}**, {member.mention}!"
+                curr_text = self.data.get("custom_message") or "{member.mention} Welcome to **{server.name}**!"
 
                 section = discord.ui.Section(
                     discord.ui.TextDisplay(
-                        f"The text part of the welcome message. Click the customise button to customise the format.\n\n* **Current Format:**\n  * ```{curr_text}```\n* **Available Variables:**\n  * `{{member.mention}}` - Mention the member.\n  * `{{member.name}}` - The member's username.\n  * `{{server.name}}` - The name of the server.\n  * `{{position}}` - The position/rank of the member."),
+                        f"The text part of the welcome message. Click the customise button to customise the format.\n\n* **Current Format:**\n  * ```{curr_text}```\n* **Available Variables:**\n  * `{{member.mention}}` - Mention the member.\n  * `{{member.display_name}}` - The member's display name.\n  * `{{server.name}}` - The name of the server.\n  * `{{position}}` - The position/rank of the member.\n  * ...and others available in Discord member or server/guild objects."),
                     accessory=btn_text_config
                 )
                 container.add_item(section)
@@ -429,7 +429,7 @@ class CV2Helper(PrivateLayoutView):
                 curr_color = self.data.get("embed_color") or "#FFFFFF"
                 section = discord.ui.Section(
                     discord.ui.TextDisplay(
-                        f"The Welcome Card (image). Use the customise button to provide a custom image URL, or to edit text.\n\n* **Custom Background:** {using_custom_img}\n* **Current Image Text:**\n  * Line 1: `{curr_l1}`\n  * Line 2: `{curr_l2}`\n* **Text Colour:** {curr_color}\n* **Available Variables:**\n  * `{{member.name}}`, `{{server.name}}`, `{{position}}`"),
+                        f"The Welcome Card (image). Use the customise button to provide a custom image URL, or to edit text.\n\n* **Custom Background:** {using_custom_img}\n* **Current Image Text:**\n  * Line 1: `{curr_l1}`\n  * Line 2: `{curr_l2}`\n* **Text Colour:** {curr_color}\n* **Available Variables:**\n  * `{{member.display_name}}`, `{{member.name}}`, `{{server.name}}`, `{{position}}`, and others available in Discord member or server/guild objects."),
                     accessory=btn_img_config
                 )
                 container.add_item(section)
@@ -567,7 +567,7 @@ class Welcome(commands.Cog):
         position = await self.get_member_count(member.guild)
         pos_str = get_ordinal(position)
 
-        line1_text = (data.get("image_line1") or "Welcome {member.name}").format(
+        line1_text = (data.get("image_line1") or "Welcome {member.display_name}").format(
             member=member, server=member.guild, position=pos_str
         )
         line2_text = (data.get("image_line2") or "You are our {position} member!").format(
@@ -676,7 +676,7 @@ class Welcome(commands.Cog):
     @app_commands.check(mod_check)
     async def welcome_dashboard(self, interaction: discord.Interaction):
         await interaction.response.send_message(
-            view=CV2Helper(self, interaction.guild.id, interaction.user)
+            view=WelcomeDashboardView(self, interaction.guild.id, interaction.user)
         )
 
     @commands.Cog.listener()
