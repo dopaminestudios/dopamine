@@ -3,12 +3,14 @@ import discord
 from discord.ext import commands, tasks
 from discord import app_commands
 import aiosqlite
+import json
 from typing import Optional, Dict, List, Any
 import time
 from contextlib import asynccontextmanager
 from dopamineframework import PrivateLayoutView
 from config import STICKYDB_PATH
 from dopamineframework import mod_check
+from cogs.embed import UseEmbedPage
 
 
 
@@ -119,18 +121,29 @@ class EditPage(PrivateLayoutView):
         container.add_item(discord.ui.Separator())
 
         bots_enabled = p.get('include_bots', 1) == 1
+        is_embed_response = p.get("response_type") == "embed"
+        response_label = "Embed" if is_embed_response else "Text"
+        response_preview = (p.get("embed_content") if is_embed_response else p.get("response_text")) or "*None*"
         details = (
             f"**Channel:** <#{p['channel_id']}>\n"
+            f"**Response Type:** `{response_label}`\n"
             f"**Color:** `{p.get('embed_color') or 'Default'}`\n"
             f"**Conversation Duration:** `{p.get('conversation_duration', 10)}s`\n"
             f"**Include Bots:** `{'Yes' if bots_enabled else 'No'}`\n"
+            f"**Response Content:** ```{response_preview}```\n"
             f"**Description:** ```{p.get('description') or '*None*'}```"
         )
         container.add_item(discord.ui.TextDisplay(details))
         container.add_item(discord.ui.Separator())
 
         row1 = discord.ui.ActionRow()
-        btn_edit_message = discord.ui.Button(label="Edit Message", style=discord.ButtonStyle.secondary)
+        if p.get("response_type") == "embed":
+            msg_label = "Refresh Embed"
+            msg_style = discord.ButtonStyle.primary
+        else:
+            msg_label = "Edit Response"
+            msg_style = discord.ButtonStyle.secondary
+        btn_edit_message = discord.ui.Button(label=msg_label, style=msg_style)
         btn_edit_message.callback = self.edit_message_callback
         btn_edit_channel = discord.ui.Button(label="Edit Channel", style=discord.ButtonStyle.secondary)
         btn_edit_channel.callback = self.edit_channel_callback
@@ -159,6 +172,64 @@ class EditPage(PrivateLayoutView):
         self.add_item(container)
 
     async def edit_message_callback(self, interaction: discord.Interaction):
+        if self.panel_data.get("response_type") == "text":
+            modal = StickyTextSetupModal(
+                self.cog,
+                self.guild_id,
+                self.panel_data['channel_id'],
+                is_edit=True,
+                original_title=self.panel_data['title'],
+            )
+            await interaction.response.send_modal(modal)
+            return
+
+        if self.panel_data.get("response_type") == "embed":
+            embeds_cog = self.cog.bot.get_cog("Embeds")
+            if embeds_cog is None:
+                await interaction.response.send_message(
+                    "Embed system is not available right now. Please try again later.",
+                    ephemeral=True,
+                )
+                return
+
+            embeds = await embeds_cog.fetch_embeds_for_guild(interaction.guild.id)
+            if not embeds:
+                await interaction.response.send_message(
+                    "No saved embeds found for this server. Use `/embed` to create one first.",
+                    ephemeral=True,
+                )
+                return
+
+            async def on_pick(inter: discord.Interaction, content: Optional[str], embed_obj: discord.Embed):
+                raw_embed = json.dumps(embed_obj.to_dict(), ensure_ascii=False)
+                title = self.panel_data["title"]
+                async with self.cog.acquire_db() as db:
+                    await db.execute(
+                        "UPDATE sticky_panels SET response_type = ?, response_text = NULL, embed_content = ?, embed_data = ? "
+                        "WHERE guild_id = ? AND title = ?",
+                        ("embed", content or None, raw_embed, self.guild_id, title),
+                    )
+                    await db.commit()
+
+                panel = self.cog.panel_cache[self.guild_id][title]
+                panel["response_type"] = "embed"
+                panel["response_text"] = None
+                panel["embed_content"] = content or None
+                panel["embed_data"] = embed_obj.to_dict()
+                self.panel_data = panel
+                self.build_layout()
+                await inter.response.edit_message(view=self)
+            view = UseEmbedPage(
+                user=self.user,
+                cog=embeds_cog,
+                guild_id=interaction.guild.id,
+                embeds=embeds,
+                returnembed=True,
+                on_pick=on_pick,
+            )
+            await interaction.response.edit_message(view=view)
+            return
+
         modal = StickySetupModal(self.cog, self.guild_id, self.panel_data['channel_id'], is_edit=True,
                                  original_title=self.panel_data['title'])
         await interaction.response.send_modal(modal)
@@ -362,6 +433,17 @@ class ChannelSelectView(PrivateLayoutView):
     async def select_callback(self, interaction: discord.Interaction):
         selected_channel = self.select.values[0]
 
+        if selected_channel.id in self.cog.active_channels:
+            existing_panel = self.cog.active_channels[selected_channel.id]
+
+            is_different_sticky = not self.is_rebind or (existing_panel['title'] != self.panel_title)
+
+            if is_different_sticky:
+                return await interaction.response.send_message(
+                    f"The channel {selected_channel.mention} already has a sticky message named **{existing_panel['title']}**.\n"
+                    f"A channel can only have one sticky message at a time.",
+                    ephemeral=True
+                )
         if self.is_rebind:
             panel = self.cog.panel_cache[self.guild_id][self.panel_title]
             old_channel_id = panel['channel_id']
@@ -386,8 +468,72 @@ class ChannelSelectView(PrivateLayoutView):
                 await self.cog.update_sticky_message(panel, new_channel)
 
         else:
-            modal = StickySetupModal(self.cog, self.guild_id, selected_channel.id, is_edit=False)
+            view = StickyResponseTypeView(self.user, self.cog, self.guild_id, selected_channel.id)
+            await interaction.response.edit_message(view=view)
+
+
+class StickyResponseTypeView(PrivateLayoutView):
+    def __init__(self, user, cog, guild_id: int, channel_id: int):
+        super().__init__(user, timeout=None)
+        self.cog = cog
+        self.guild_id = guild_id
+        self.channel_id = channel_id
+        self.build_layout()
+
+    def build_layout(self):
+        self.clear_items()
+        container = discord.ui.Container()
+        container.add_item(discord.ui.TextDisplay("### Step 2: Select response type"))
+        container.add_item(discord.ui.Separator())
+        text_btn = discord.ui.Button(label="Text", style=discord.ButtonStyle.primary)
+        embed_btn = discord.ui.Button(label="Embed", style=discord.ButtonStyle.primary)
+
+        async def choose_text(interaction: discord.Interaction):
+            modal = StickyTextSetupModal(self.cog, self.guild_id, self.channel_id, is_edit=False)
             await interaction.response.send_modal(modal)
+
+        async def choose_embed(interaction: discord.Interaction):
+            embeds_cog = self.cog.bot.get_cog("Embeds")
+            if embeds_cog is None:
+                await interaction.response.send_message(
+                    "Embed system is not available right now. Please try again later.", ephemeral=True
+                )
+                return
+
+            embeds = await embeds_cog.fetch_embeds_for_guild(interaction.guild.id)
+            if not embeds:
+                await interaction.response.send_message(
+                    "No saved embeds found for this server. Use `/embed` to create one first.", ephemeral=True
+                )
+                return
+
+            async def on_pick(inter: discord.Interaction, content: Optional[str], embed_obj: discord.Embed):
+                modal = StickyEmbedNameModal(
+                    self.cog,
+                    self.guild_id,
+                    self.channel_id,
+                    content or None,
+                    embed_obj.to_dict(),
+                )
+                await inter.response.send_modal(modal)
+
+            view = UseEmbedPage(
+                user=self.user,
+                cog=embeds_cog,
+                guild_id=interaction.guild.id,
+                embeds=embeds,
+                returnembed=True,
+                on_pick=on_pick,
+            )
+            await interaction.response.edit_message(view=view)
+
+        text_btn.callback = choose_text
+        embed_btn.callback = choose_embed
+        row = discord.ui.ActionRow()
+        row.add_item(text_btn)
+        row.add_item(embed_btn)
+        container.add_item(row)
+        self.add_item(container)
 
 
 class StickyDashboard(PrivateLayoutView):
@@ -488,6 +634,154 @@ class DurationModal(discord.ui.Modal):
         await interaction.response.edit_message(view=self.parent_view)
 
 
+class StickyTextSetupModal(discord.ui.Modal):
+    def __init__(self, cog, guild_id, channel_id, is_edit=False, original_title=None):
+        super().__init__(title="Configure Sticky Text Response")
+        self.cog = cog
+        self.guild_id = guild_id
+        self.channel_id = channel_id
+        self.is_edit = is_edit
+        self.original_title = original_title
+
+        self.title_input = discord.ui.TextInput(label="Sticky Name (Identifier)", default=original_title or "", required=True)
+        self.response_input = discord.ui.TextInput(
+            label="Text Response",
+            style=discord.TextStyle.paragraph,
+            required=True,
+            max_length=2000,
+        )
+        self.add_item(self.title_input)
+        self.add_item(self.response_input)
+
+        if is_edit:
+            data = cog.panel_cache[guild_id].get(original_title, {})
+            self.response_input.default = data.get("response_text", "")
+
+    async def on_submit(self, interaction: discord.Interaction):
+        title = self.title_input.value.strip()
+        response_text = self.response_input.value
+
+        if not title:
+            await interaction.response.send_message("Sticky name is required.", ephemeral=True)
+            return
+
+        if not self.is_edit and title in self.cog.panel_cache.get(self.guild_id, {}):
+            await interaction.response.send_message("A sticky message with that title already exists.", ephemeral=True)
+            return
+
+        if self.is_edit:
+            panel = self.cog.panel_cache[self.guild_id].get(self.original_title)
+            if panel is None:
+                await interaction.response.send_message("Sticky message not found.", ephemeral=True)
+                return
+
+            async with self.cog.acquire_db() as db:
+                await db.execute(
+                    "UPDATE sticky_panels SET title = ?, response_type = ?, response_text = ?, embed_content = NULL, embed_data = NULL "
+                    "WHERE guild_id = ? AND title = ?",
+                    (title, "text", response_text, self.guild_id, self.original_title),
+                )
+                await db.commit()
+
+            panel["title"] = title
+            panel["response_type"] = "text"
+            panel["response_text"] = response_text
+            panel["embed_content"] = None
+            panel["embed_data"] = None
+
+            if title != self.original_title:
+                self.cog.panel_cache[self.guild_id][title] = self.cog.panel_cache[self.guild_id].pop(self.original_title)
+            self.cog.active_channels[panel["channel_id"]] = panel
+            await interaction.response.send_message(f"Sticky message **{title}** updated!", ephemeral=True)
+            return
+
+        data = {
+            "guild_id": self.guild_id,
+            "title": title,
+            "embed_color": None,
+            "description": None,
+            "image_url": None,
+            "footer": None,
+            "channel_id": self.channel_id,
+            "last_message_id": None,
+            "conversation_duration": 10,
+            "include_bots": 1,
+            "panel_id": int(time.time()),
+            "response_type": "text",
+            "response_text": response_text,
+            "embed_content": None,
+            "embed_data": None,
+        }
+
+        async with self.cog.acquire_db() as db:
+            cols = ", ".join(data.keys())
+            placeholders = ", ".join(["?"] * len(data))
+            await db.execute(f"INSERT INTO sticky_panels ({cols}) VALUES ({placeholders})", list(data.values()))
+            await db.commit()
+
+        self.cog.panel_cache.setdefault(self.guild_id, {})[title] = data
+        self.cog.active_channels[self.channel_id] = data
+        channel = self.cog.bot.get_channel(self.channel_id) or await self.cog.bot.fetch_channel(self.channel_id)
+        if channel:
+            await self.cog.update_sticky_message(data, channel)
+        await interaction.response.send_message(f"Sticky message **{title}** created!", ephemeral=True)
+
+
+class StickyEmbedNameModal(discord.ui.Modal):
+    def __init__(self, cog, guild_id, channel_id, embed_content: Optional[str], embed_data: Dict[str, Any]):
+        super().__init__(title="Name Sticky Embed Response")
+        self.cog = cog
+        self.guild_id = guild_id
+        self.channel_id = channel_id
+        self.embed_content = embed_content
+        self.embed_data = embed_data
+        self.title_input = discord.ui.TextInput(label="Sticky Name (Identifier)", required=True, max_length=100)
+        self.add_item(self.title_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        title = self.title_input.value.strip()
+        if not title:
+            await interaction.response.send_message("Sticky name is required.", ephemeral=True)
+            return
+        if title in self.cog.panel_cache.get(self.guild_id, {}):
+            await interaction.response.send_message("A sticky message with that title already exists.", ephemeral=True)
+            return
+
+        data = {
+            "guild_id": self.guild_id,
+            "title": title,
+            "embed_color": None,
+            "description": None,
+            "image_url": None,
+            "footer": None,
+            "channel_id": self.channel_id,
+            "last_message_id": None,
+            "conversation_duration": 10,
+            "include_bots": 1,
+            "panel_id": int(time.time()),
+            "response_type": "embed",
+            "response_text": None,
+            "embed_content": self.embed_content,
+            "embed_data": json.dumps(self.embed_data, ensure_ascii=False),
+        }
+
+        async with self.cog.acquire_db() as db:
+            cols = ", ".join(data.keys())
+            placeholders = ", ".join(["?"] * len(data))
+            await db.execute(f"INSERT INTO sticky_panels ({cols}) VALUES ({placeholders})", list(data.values()))
+            await db.commit()
+
+        cache_data = dict(data)
+        cache_data["embed_data"] = self.embed_data
+        self.cog.panel_cache.setdefault(self.guild_id, {})[title] = cache_data
+        self.cog.active_channels[self.channel_id] = cache_data
+
+        channel = self.cog.bot.get_channel(self.channel_id) or await self.cog.bot.fetch_channel(self.channel_id)
+        if channel:
+            await self.cog.update_sticky_message(cache_data, channel)
+        await interaction.response.send_message(f"Sticky message **{title}** created!", ephemeral=True)
+
+
 class StickySetupModal(discord.ui.Modal):
     def __init__(self, cog, guild_id, channel_id, is_edit=False, original_title=None):
         super().__init__(title="Configure Sticky Message")
@@ -546,10 +840,8 @@ class StickySetupModal(discord.ui.Modal):
 
         async with self.cog.acquire_db() as db:
             if self.is_edit:
-                # Get the existing reference so we update the object everywhere
                 panel = self.cog.panel_cache[self.guild_id].get(self.original_title)
 
-                # Update the actual dictionary object that active_channels is also pointing to
                 panel.update({
                     "title": title,
                     "embed_color": color_val or None,
@@ -558,7 +850,6 @@ class StickySetupModal(discord.ui.Modal):
                     "footer": self.footer_input.value or None,
                 })
 
-                # Handle title change in the nested dict
                 if title != self.original_title:
                     self.cog.panel_cache[self.guild_id][title] = self.cog.panel_cache[self.guild_id].pop(
                         self.original_title)
@@ -642,6 +933,16 @@ class StickyMessages(commands.Cog):
                 image_url TEXT, embed_color TEXT, channel_id INTEGER, last_message_id INTEGER,
                 conversation_duration INTEGER DEFAULT 10, include_bots INTEGER DEFAULT 1,
                 PRIMARY KEY (guild_id, panel_id))''')
+            for sql in (
+                "ALTER TABLE sticky_panels ADD COLUMN response_type TEXT DEFAULT 'embed'",
+                "ALTER TABLE sticky_panels ADD COLUMN response_text TEXT",
+                "ALTER TABLE sticky_panels ADD COLUMN embed_content TEXT",
+                "ALTER TABLE sticky_panels ADD COLUMN embed_data TEXT",
+            ):
+                try:
+                    await db.execute(sql)
+                except Exception:
+                    pass
             await db.commit()
 
     async def populate_caches(self):
@@ -651,6 +952,14 @@ class StickyMessages(commands.Cog):
                 cols = [c[0] for c in cursor.description]
                 for r in rows:
                     d = dict(zip(cols, r))
+                    if d.get("response_type") is None:
+                        d["response_type"] = "embed"
+                    raw_embed = d.get("embed_data")
+                    if raw_embed:
+                        try:
+                            d["embed_data"] = json.loads(raw_embed)
+                        except Exception:
+                            d["embed_data"] = None
                     self.panel_cache.setdefault(d["guild_id"], {})[d["title"]] = d
                     if d["channel_id"]: self.active_channels[d["channel_id"]] = d
 
@@ -718,7 +1027,13 @@ class StickyMessages(commands.Cog):
                     await (await channel.fetch_message(panel['last_message_id'])).delete()
                 except:
                     pass
-            new_msg = await channel.send(embed=self.build_panel_embed(panel))
+            if panel.get("response_type") == "text":
+                new_msg = await channel.send(panel.get("response_text") or "")
+            elif panel.get("response_type") == "embed" and panel.get("embed_data"):
+                embed_obj = discord.Embed.from_dict(panel.get("embed_data"))
+                new_msg = await channel.send(content=panel.get("embed_content"), embed=embed_obj)
+            else:
+                new_msg = await channel.send(embed=self.build_panel_embed(panel))
             async with self.acquire_db() as db:
                 await db.execute("UPDATE sticky_panels SET last_message_id = ? WHERE guild_id = ? AND title = ?",
                                  (new_msg.id, panel['guild_id'], panel['title']))
