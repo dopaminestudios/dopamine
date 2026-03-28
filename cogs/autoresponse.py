@@ -360,7 +360,7 @@ class EditAutoresponsePage(PrivateLayoutView):
         if self.record.response_type == "text":
             response_btn_label = "Edit Response"
         else:
-            response_btn_label = "Refresh Embed"
+            response_btn_label = "Edit Embed"
 
         response_btn = discord.ui.Button(
             label=response_btn_label,

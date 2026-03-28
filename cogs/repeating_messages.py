@@ -616,7 +616,7 @@ class EditPage(PrivateLayoutView):
         btn_state = discord.ui.Button(label=btn_state_label, style=btn_state_style)
         btn_state.callback = self.toggle_state_callback
 
-        edit_label = "Refresh Embed" if self.panel_data.get('response_type') == 'embed' else "Edit Response"
+        edit_label = "Edit Embed" if self.panel_data.get('response_type') == 'embed' else "Edit Response"
         edit_style = discord.ButtonStyle.primary if self.panel_data.get('response_type') == 'embed' else discord.ButtonStyle.secondary
         btn_edit_message = discord.ui.Button(label=edit_label, style=edit_style)
         btn_edit_message.callback = self.edit_message_callback
