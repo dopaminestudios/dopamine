@@ -254,7 +254,7 @@ class DiscordPhone(commands.Cog):
             self.active_calls[chan_b.id] = call
             call.timeout_task = self.bot.loop.create_task(self.timeout_handler(call))
 
-            safe_msg = f"Connected! Say hi to the people on the other side!\nRemember, you can report problematic users: Click on three dots -> Apps -> Report DiscordPhone Message. Or, reply to the problematic message with `!!report <reason>`.\n-# Dopamine - a Dopamine Studios product. Providing the premium experience without the paywalls. [Click here](<https://discord.com/oauth2/authorize?client_id=1411266382380924938>) to invite."
+            safe_msg = f"Connected! Say hi to the people on the other side!\nRemember, you can report problematic users: Click on three dots -> Apps -> Report DiscordPhone Message. Or, reply to the problematic message with `!!report <reason>`.\n-# Dopamine - a Dopamine Studios product. Providing the premium experience without the paywalls. [Click here](<https://top.gg/bot/1411266382380924938/invite>) to invite."
 
             await chan_a.send(f"{partner_user.mention} {safe_msg}")
             await chan_b.send(f"{user.mention} {safe_msg}")

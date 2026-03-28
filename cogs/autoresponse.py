@@ -14,6 +14,7 @@ from rapidfuzz import fuzz
 from config import ARSPDB_PATH
 from dopamineframework import PrivateLayoutView, mod_check
 from cogs.embed import UseEmbedPage
+import re
 
 
 @dataclass
@@ -356,6 +357,17 @@ class EditAutoresponsePage(PrivateLayoutView):
         container.add_item(row)
 
         row2 = discord.ui.ActionRow()
+        if self.record.response_type == "text":
+            response_btn_label = "Edit Response"
+        else:
+            response_btn_label = "Edit Embed"
+
+        response_btn = discord.ui.Button(
+            label=response_btn_label,
+            style=discord.ButtonStyle.primary,
+        )
+
+        row2.add_item(response_btn)
         row2.add_item(delete_btn)
         container.add_item(row2)
 
@@ -417,6 +429,53 @@ class EditAutoresponsePage(PrivateLayoutView):
         delete_btn.callback = delete_callback
         return_btn.callback = return_dashboard_callback
 
+        async def response_action_callback(interaction: discord.Interaction):
+            if self.record.response_type == "text":
+                modal = EditTextResponseModal(self.cog, self.guild_id, self.record, parent_view=self)
+                await interaction.response.send_modal(modal)
+                return
+
+            embeds_cog = self.cog.bot.get_cog("Embeds")
+            if embeds_cog is None:
+                await interaction.response.send_message(
+                    "Embed system is not available right now. Please try again later.",
+                    ephemeral=True,
+                )
+                return
+
+            embeds = await embeds_cog.fetch_embeds_for_guild(interaction.guild.id)
+            if not embeds:
+                await interaction.response.send_message(
+                    "No saved embeds found for this server. Use `/embed` to create one first.",
+                    ephemeral=True,
+                )
+                return
+
+            async def on_pick(inter: discord.Interaction, content: Optional[str], embed_obj: discord.Embed):
+                await self.cog.update_autoresponse_embed(
+                    self.guild_id,
+                    self.record.id,
+                    content or None,
+                    embed_obj.to_dict(),
+                )
+                self.record.response_type = "embed"
+                self.record.embed_content = content or None
+                self.record.embed_data = embed_obj.to_dict()
+                self.build_layout()
+                await inter.response.edit_message(view=self)
+
+            view = UseEmbedPage(
+                user=self.user,
+                cog=embeds_cog,
+                guild_id=interaction.guild.id,
+                embeds=embeds,
+                returnembed=True,
+                on_pick=on_pick,
+            )
+            await interaction.response.edit_message(view=view)
+
+        response_btn.callback = response_action_callback
+
 
 class TriggerEditModal(discord.ui.Modal):
     def __init__(self, cog: "Autoresponse", guild_id: int, record: AutoresponseRecord, parent_view: EditAutoresponsePage):
@@ -446,6 +505,32 @@ class TriggerEditModal(discord.ui.Modal):
 
         await self.cog.update_autoresponse_trigger(self.guild_id, self.record.id, new_trigger)
         self.record.trigger = new_trigger
+        self.parent_view.build_layout()
+        await interaction.response.edit_message(view=self.parent_view)
+
+
+class EditTextResponseModal(discord.ui.Modal):
+    def __init__(self, cog: "Autoresponse", guild_id: int, record: AutoresponseRecord, parent_view: EditAutoresponsePage):
+        super().__init__(title="Edit Text Response")
+        self.cog = cog
+        self.guild_id = guild_id
+        self.record = record
+        self.parent_view = parent_view
+
+        self.content_input = discord.ui.TextInput(
+            label="Response Content",
+            style=discord.TextStyle.paragraph,
+            required=True,
+            max_length=2000,
+            default=record.response_text or "",
+        )
+        self.add_item(self.content_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        new_text = self.content_input.value
+        await self.cog.update_autoresponse_response_text(self.guild_id, self.record.id, new_text)
+        self.record.response_type = "text"
+        self.record.response_text = new_text
         self.parent_view.build_layout()
         await interaction.response.edit_message(view=self.parent_view)
 
@@ -1012,6 +1097,43 @@ class Autoresponse(commands.Cog):
         if guild_id in self.cache and ar_id in self.cache[guild_id]:
             self.cache[guild_id][ar_id].fuzzy_threshold = threshold
 
+    async def update_autoresponse_response_text(self, guild_id: int, ar_id: int, text: str):
+        async with self.acquire_db() as db:
+            await db.execute(
+                "UPDATE autoresponses SET response_type = ?, response_text = ?, embed_content = NULL, embed_data = NULL "
+                "WHERE id = ? AND guild_id = ?",
+                ("text", text, ar_id, guild_id),
+            )
+            await db.commit()
+        if guild_id in self.cache and ar_id in self.cache[guild_id]:
+            rec = self.cache[guild_id][ar_id]
+            rec.response_type = "text"
+            rec.response_text = text
+            rec.embed_content = None
+            rec.embed_data = None
+
+    async def update_autoresponse_embed(
+        self,
+        guild_id: int,
+        ar_id: int,
+        content: Optional[str],
+        embed_data: Dict[str, Any],
+    ):
+        raw_embed = _serialize_embed_data(embed_data)
+        async with self.acquire_db() as db:
+            await db.execute(
+                "UPDATE autoresponses SET response_type = ?, response_text = NULL, embed_content = ?, embed_data = ? "
+                "WHERE id = ? AND guild_id = ?",
+                ("embed", content, raw_embed, ar_id, guild_id),
+            )
+            await db.commit()
+        if guild_id in self.cache and ar_id in self.cache[guild_id]:
+            rec = self.cache[guild_id][ar_id]
+            rec.response_type = "embed"
+            rec.response_text = None
+            rec.embed_content = content
+            rec.embed_data = embed_data
+
     async def delete_autoresponse(self, guild_id: int, ar_id: int):
         async with self.acquire_db() as db:
             await db.execute(
@@ -1048,7 +1170,9 @@ class Autoresponse(commands.Cog):
             if record.match_mode == "exact":
                 matched = msg_text == trigger
             elif record.match_mode == "partial":
-                matched = trigger in msg_text
+                pattern = rf"\b{re.escape(trigger)}\b"
+                flags = re.IGNORECASE
+                matched = bool(re.search(pattern, content, flags=flags))
             elif record.match_mode == "fuzzy":
                 if msg_text and trigger:
                     score = fuzz.ratio(trigger, msg_text)

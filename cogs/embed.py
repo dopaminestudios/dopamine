@@ -778,7 +778,7 @@ class EmbedPreviewView(PrivateView):
             existing_id=self.existing_id,
         )
         self.existing_id = embed_id
-        await interaction.response.edit_message(content=f"Embed saved successfully with ID `{embed_id}`.", embed=None, view=None)
+        await interaction.response.edit_message(content=f"Embed saved successfully.", embed=None, view=None)
 
     @discord.ui.button(label="Save & Send", style=discord.ButtonStyle.blurple)
     async def save_and_send_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -791,7 +791,7 @@ class EmbedPreviewView(PrivateView):
         self.existing_id = embed_id
 
         view = ViewChannelSelect(self.cog, self.draft)
-        await interaction.response.edit_message(content="Select the channel where you want the embed to be sent:", embed=None, view=view)
+        await interaction.response.edit_message(content="## Select the channel where you want the embed to be sent:", embed=None, view=view)
 
     @discord.ui.button(label="Edit", style=discord.ButtonStyle.primary)
     async def edit_button(self, interaction: discord.Interaction, button: discord.ui.Button):

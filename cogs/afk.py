@@ -66,9 +66,9 @@ class ViewMissedPings(PrivateView):
                 msg_link = f" [[Jump]](<https://discord.com/channels/{entry.guild_id}/{entry.channel_id}/{entry.message_id}>)"
 
             lines.append(
-                f'{idx}. {display_name} '
+                f'{idx}. {display_name} in **{guild.name}**'
                 f'(<t:{entry.timestamp}:d> <t:{entry.timestamp}:t>): '
-                f'"{entry.content}" {msg_link}'
+                f'"{entry.content}"{msg_link}\n\n'
             )
 
         paginator = ViewPaginator(
@@ -77,14 +77,21 @@ class ViewMissedPings(PrivateView):
             per_page=5,
             color=discord.Color(0x944ae8),
         )
+        try:
+            message = await interaction.user.send(
+                embed=paginator.format_embed(),
+                view=paginator
+            )
+            link = message.jump_url
+            sent = True
+        except discord.Forbidden:
+            await interaction.response.send_message("""I can't DM you the Missed Pings! Please first DM me "hi" so that Discord lets me DM you.""", ephemeral=True)
+            sent = False
 
-        await interaction.response.send_message(
-            embed=paginator.format_embed(),
-            view=paginator,
-            ephemeral=True,
-        )
+        if sent:
+            await interaction.response.send_message(f"I sent the Missed Pings to your DMs! [Click here to Jump]({link}).", ephemeral=True)
+            await self.cog.clear_missed_pings(self.user_id)
 
-        await self.cog.clear_missed_pings(self.user_id)
 
 
 class AFK(commands.Cog):
@@ -351,7 +358,7 @@ class AFK(commands.Cog):
         if revert_nick and state and state.origin_guild_id:
             guild = self.bot.get_guild(state.origin_guild_id)
             if guild:
-                member = guild.get_member(user_id)
+                member = guild.get_member(user_id) or await guild.fetch_member(user_id)
                 if member:
                     try:
                         await member.edit(nick=state.old_nick, reason="AFK ended")
@@ -395,8 +402,13 @@ class AFK(commands.Cog):
             minutes = elapsed // 60
             base = f"Welcome back! You were AFK for **{minutes}** minutes!"
         else:
-            hours = elapsed // 3600
-            base = f"Welcome back! You were AFK for **{hours}** hours!"
+            hours, remainder = divmod(elapsed, 3600)
+            minutes = remainder // 60
+
+            if minutes > 0:
+                base = f"Welcome back! You were AFK for **{hours}** hours and **{minutes}** minutes!"
+            else:
+                base = f"Welcome back! You were AFK for **{hours}** hours!"
 
         if missed_count > 0 and state.save_missed_pings:
             base += f"\nYou have **{missed_count}** missed pings!"
