@@ -791,7 +791,7 @@ class EmbedPreviewView(PrivateView):
         self.existing_id = embed_id
 
         view = ViewChannelSelect(self.cog, self.draft)
-        await interaction.response.edit_message(content="Select the channel where you want the embed to be sent:", embed=None, view=view)
+        await interaction.response.edit_message(content="## Select the channel where you want the embed to be sent:", embed=None, view=view)
 
     @discord.ui.button(label="Edit", style=discord.ButtonStyle.primary)
     async def edit_button(self, interaction: discord.Interaction, button: discord.ui.Button):
