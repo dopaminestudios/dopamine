@@ -127,18 +127,16 @@ class EditPage(PrivateLayoutView):
         details = (
             f"**Channel:** <#{p['channel_id']}>\n"
             f"**Response Type:** `{response_label}`\n"
-            f"**Color:** `{p.get('embed_color') or 'Default'}`\n"
             f"**Conversation Duration:** `{p.get('conversation_duration', 10)}s`\n"
             f"**Include Bots:** `{'Yes' if bots_enabled else 'No'}`\n"
-            f"**Response Content:** ```{response_preview}```\n"
-            f"**Description:** ```{p.get('description') or '*None*'}```"
+            f"**Response Content:** ```{response_preview}```"
         )
         container.add_item(discord.ui.TextDisplay(details))
         container.add_item(discord.ui.Separator())
 
         row1 = discord.ui.ActionRow()
         if p.get("response_type") == "embed":
-            msg_label = "Refresh Embed"
+            msg_label = "Edit Embed"
             msg_style = discord.ButtonStyle.primary
         else:
             msg_label = "Edit Response"
