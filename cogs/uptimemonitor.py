@@ -28,7 +28,8 @@ class StatusHeartbeat(commands.Cog):
                 if response.status != 200:
                     self.bot.logger.warning(f"Heartbeat failed: Status {response.status}")
         except Exception as e:
-            self.bot.logger.error(f"Heartbeat loop error: {e}")
+            if self.bot and hasattr(self.bot, 'logger'):
+                self.bot.logger.error(f"Heartbeat loop error: {e}")
             if self.session:
                 await self.session.close()
 
@@ -38,7 +39,8 @@ class StatusHeartbeat(commands.Cog):
 
     @send_heartbeat.error
     async def on_heartbeat_error(self, error):
-        self.bot.logger.critical(f"The heartbeat task has DIED: {error}")
+        if self.bot and hasattr(self.bot, 'logger'):
+            self.bot.logger.critical(f"The heartbeat task has DIED: {error}")
 
         if self.bot.owner_ids:
             owners = list(self.bot.owner_ids)
@@ -56,8 +58,10 @@ class StatusHeartbeat(commands.Cog):
                 owner = self.bot.get_user(owner_id) or await self.bot.fetch_user(owner_id)
                 await owner.send(f"**Critical:** The heartbeat task has failed: ```{error}```")
             except Exception as e:
-                self.bot.logger.error(f"Could not send DM to owner {owner_id}: {e}")
-        self.send_heartbeat.restart()
+                    if self.bot and hasattr(self.bot, 'logger'):
+                        self.bot.logger.error(f"Could not send DM to owner {owner_id}: {e}")
+            if not self.send_heartbeat.is_being_cancelled():
+                self.send_heartbeat.restart()
 
 async def setup(bot):
     await bot.add_cog(StatusHeartbeat(bot))
