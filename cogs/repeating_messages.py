@@ -6,12 +6,14 @@ import aiosqlite
 import asyncio
 import time
 import re
+import json
 from typing import Optional, List, Dict, Tuple, Any, AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime
 from config import SMDB_PATH
 from dopamineframework import mod_check
 from dopamineframework import PrivateLayoutView
+from cogs.embed import UseEmbedPage
 
 
 class CreateRepeatingMessageModal(Modal):
@@ -63,6 +65,9 @@ class CreateRepeatingMessageModal(Modal):
             "name": self.name_input.value,
             "channel_id": self.channel.id,
             "message_content": self.content_input.value,
+            "response_type": "text",
+            "embed_content": None,
+            "embed_data": None,
             "frequency_seconds": frequency_seconds,
             "next_send_time": current_time,
             "is_active": 1,
@@ -73,9 +78,9 @@ class CreateRepeatingMessageModal(Modal):
             await db.execute(
                 """
                 INSERT INTO scheduled_messages
-                (guild_id, message_id, name, channel_id, message_content, frequency_seconds,
-                 next_send_time, is_active, started_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (guild_id, message_id, name, channel_id, message_content, response_type, embed_content, embed_data,
+                 frequency_seconds, next_send_time, is_active, started_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 tuple(data.values()),
             )
@@ -87,6 +92,88 @@ class CreateRepeatingMessageModal(Modal):
 
         await interaction.response.send_message(
             f"Successfully created **{data['name']}** in {self.channel.mention}!",
+            ephemeral=True
+        )
+        asyncio.create_task(self.cog.send_repeating_messages())
+
+
+class CreateRepeatingEmbedModal(Modal):
+    def __init__(
+        self,
+        cog: "RepeatingMessages",
+        channel: discord.TextChannel,
+        embed_content: Optional[str],
+        embed_data: Dict[str, Any],
+    ):
+        super().__init__(title=f"Create Message for #{channel.name}")
+        self.cog = cog
+        self.channel = channel
+        self.embed_content = embed_content
+        self.embed_data = embed_data
+
+        self.name_input = TextInput(
+            label="Name",
+            placeholder="Daily Reminder",
+            max_length=50,
+            required=True,
+        )
+        self.frequency_input = TextInput(
+            label="Frequency (Minimum 60 Sec.)",
+            placeholder="2w 7d 8hr 11m",
+            max_length=50,
+            required=True,
+        )
+        self.add_item(self.name_input)
+        self.add_item(self.frequency_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        frequency_seconds = self.cog.parse_frequency(self.frequency_input.value)
+
+        if frequency_seconds is None or frequency_seconds < 60:
+            await interaction.response.send_message(
+                "Error: Invalid frequency (Min 60s).", ephemeral=True
+            )
+            return
+
+        guild_id = interaction.guild_id
+        message_id = self.cog.get_next_message_id(guild_id)
+        current_time = time.time()
+
+        data = {
+            "guild_id": guild_id,
+            "message_id": message_id,
+            "name": self.name_input.value,
+            "channel_id": self.channel.id,
+            "message_content": None,
+            "response_type": "embed",
+            "embed_content": self.embed_content,
+            "embed_data": json.dumps(self.embed_data, ensure_ascii=False),
+            "frequency_seconds": frequency_seconds,
+            "next_send_time": current_time,
+            "is_active": 1,
+            "started_at": current_time
+        }
+
+        async with self.cog.acquire_db() as db:
+            await db.execute(
+                """
+                INSERT INTO scheduled_messages
+                (guild_id, message_id, name, channel_id, message_content, response_type, embed_content, embed_data,
+                 frequency_seconds, next_send_time, is_active, started_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                tuple(data.values()),
+            )
+            await db.commit()
+
+        if guild_id not in self.cog.message_cache:
+            self.cog.message_cache[guild_id] = {}
+        cached = dict(data)
+        cached["embed_data"] = self.embed_data
+        self.cog.message_cache[guild_id][message_id] = cached
+
+        await interaction.response.send_message(
+            f"Successfully created **{cached['name']}** in {self.channel.mention}!",
             ephemeral=True
         )
         asyncio.create_task(self.cog.send_repeating_messages())
@@ -112,14 +199,21 @@ class EditMessageContentModal(Modal):
         new_content = self.content_input.value
         async with self.cog.acquire_db() as db:
             await db.execute(
-                "UPDATE scheduled_messages SET message_content = ? WHERE guild_id = ? AND message_id = ?",
-                (new_content, self.guild_id, self.message_id)
+                "UPDATE scheduled_messages SET message_content = ?, response_type = ?, embed_content = NULL, embed_data = NULL "
+                "WHERE guild_id = ? AND message_id = ?",
+                (new_content, "text", self.guild_id, self.message_id)
             )
             await db.commit()
 
         self.cog.message_cache[self.guild_id][self.message_id]["message_content"] = new_content
+        self.cog.message_cache[self.guild_id][self.message_id]["response_type"] = "text"
+        self.cog.message_cache[self.guild_id][self.message_id]["embed_content"] = None
+        self.cog.message_cache[self.guild_id][self.message_id]["embed_data"] = None
 
         self.parent_view.panel_data["message_content"] = new_content
+        self.parent_view.panel_data["response_type"] = "text"
+        self.parent_view.panel_data["embed_content"] = None
+        self.parent_view.panel_data["embed_data"] = None
         self.parent_view.build_layout()
         await interaction.response.edit_message(view=self.parent_view)
 
@@ -225,8 +319,71 @@ class CreateChannelSelectView(PrivateLayoutView):
 
     async def select_callback(self, interaction: discord.Interaction):
         selected_channel = self.select.values[0]
-        modal = CreateRepeatingMessageModal(self.cog, selected_channel)
-        await interaction.response.send_modal(modal)
+        view = RepeatingResponseTypeView(self.user, self.cog, selected_channel)
+        await interaction.response.edit_message(view=view)
+
+
+class RepeatingResponseTypeView(PrivateLayoutView):
+    def __init__(self, user, cog: "RepeatingMessages", channel: discord.TextChannel):
+        super().__init__(user, timeout=None)
+        self.cog = cog
+        self.channel = channel
+        self.build_layout()
+
+    def build_layout(self):
+        self.clear_items()
+        container = discord.ui.Container()
+        container.add_item(discord.ui.TextDisplay("### Step 2: Select the response type"))
+        container.add_item(discord.ui.Separator())
+
+        text_btn = discord.ui.Button(label="Text", style=discord.ButtonStyle.primary)
+        embed_btn = discord.ui.Button(label="Embed", style=discord.ButtonStyle.primary)
+
+        async def choose_text(interaction: discord.Interaction):
+            modal = CreateRepeatingMessageModal(self.cog, self.channel)
+            await interaction.response.send_modal(modal)
+
+        async def choose_embed(interaction: discord.Interaction):
+            embeds_cog = self.cog.bot.get_cog("Embeds")
+            if embeds_cog is None:
+                await interaction.response.send_message(
+                    "Embed system is not available right now. Please try again later.", ephemeral=True
+                )
+                return
+
+            embeds = await embeds_cog.fetch_embeds_for_guild(interaction.guild.id)
+            if not embeds:
+                await interaction.response.send_message(
+                    "No saved embeds found for this server. Use `/embed` to create one first.", ephemeral=True
+                )
+                return
+
+            async def on_pick(inter: discord.Interaction, content: Optional[str], embed_obj: discord.Embed):
+                modal = CreateRepeatingEmbedModal(
+                    self.cog,
+                    self.channel,
+                    content or None,
+                    embed_obj.to_dict(),
+                )
+                await inter.response.send_modal(modal)
+
+            view = UseEmbedPage(
+                user=self.user,
+                cog=embeds_cog,
+                guild_id=interaction.guild.id,
+                embeds=embeds,
+                returnembed=True,
+                on_pick=on_pick,
+            )
+            await interaction.response.edit_message(view=view)
+
+        text_btn.callback = choose_text
+        embed_btn.callback = choose_embed
+        row = discord.ui.ActionRow()
+        row.add_item(text_btn)
+        row.add_item(embed_btn)
+        container.add_item(row)
+        self.add_item(container)
 
 class ChannelSelectView(PrivateLayoutView):
     def __init__(self, user, cog, guild_id, message_id, previous_view):
@@ -445,7 +602,8 @@ class EditPage(PrivateLayoutView):
             f"**Channel:** <#{self.panel_data['channel_id']}>\n"
             f"**Frequency:** {fmt_freq}\n"
             f"**Next Send:** {timestamp_str}\n"
-            f"**Message Content:**\n```\n{self.panel_data['message_content'][:1500]}\n```"
+            f"**Response Type:** {('Embed' if self.panel_data.get('response_type') == 'embed' else 'Text')}\n"
+            f"**Message Content:**\n```\n{(self.panel_data.get('message_content') or self.panel_data.get('embed_content') or '*None*')[:1500]}\n```"
         )
         container.add_item(discord.ui.TextDisplay(details))
         container.add_item(discord.ui.Separator())
@@ -458,7 +616,9 @@ class EditPage(PrivateLayoutView):
         btn_state = discord.ui.Button(label=btn_state_label, style=btn_state_style)
         btn_state.callback = self.toggle_state_callback
 
-        btn_edit_message = discord.ui.Button(label="Edit Message Content", style=discord.ButtonStyle.secondary)
+        edit_label = "Refresh Embed" if self.panel_data.get('response_type') == 'embed' else "Edit Response"
+        edit_style = discord.ButtonStyle.primary if self.panel_data.get('response_type') == 'embed' else discord.ButtonStyle.secondary
+        btn_edit_message = discord.ui.Button(label=edit_label, style=edit_style)
         btn_edit_message.callback = self.edit_message_callback
 
         btn_edit_channel = discord.ui.Button(label="Edit Channel", style=discord.ButtonStyle.secondary)
@@ -515,9 +675,53 @@ class EditPage(PrivateLayoutView):
         await interaction.response.edit_message(view=self)
 
     async def edit_message_callback(self, interaction: discord.Interaction):
+        if self.panel_data.get("response_type") == "embed":
+            embeds_cog = self.cog.bot.get_cog("Embeds")
+            if embeds_cog is None:
+                await interaction.response.send_message(
+                    "Embed system is not available right now. Please try again later.", ephemeral=True
+                )
+                return
+
+            embeds = await embeds_cog.fetch_embeds_for_guild(interaction.guild.id)
+            if not embeds:
+                await interaction.response.send_message(
+                    "No saved embeds found for this server. Use `/embed` to create one first.", ephemeral=True
+                )
+                return
+
+            async def on_pick(inter: discord.Interaction, content: Optional[str], embed_obj: discord.Embed):
+                raw_embed = json.dumps(embed_obj.to_dict(), ensure_ascii=False)
+                async with self.cog.acquire_db() as db:
+                    await db.execute(
+                        "UPDATE scheduled_messages SET response_type = ?, message_content = NULL, embed_content = ?, embed_data = ? "
+                        "WHERE guild_id = ? AND message_id = ?",
+                        ("embed", content or None, raw_embed, self.guild_id, self.panel_data["message_id"]),
+                    )
+                    await db.commit()
+                cache_item = self.cog.message_cache[self.guild_id][self.panel_data["message_id"]]
+                cache_item["response_type"] = "embed"
+                cache_item["message_content"] = None
+                cache_item["embed_content"] = content or None
+                cache_item["embed_data"] = embed_obj.to_dict()
+                self.panel_data = cache_item
+                self.build_layout()
+                await inter.response.edit_message(view=self)
+
+            view = UseEmbedPage(
+                user=self.user,
+                cog=embeds_cog,
+                guild_id=interaction.guild.id,
+                embeds=embeds,
+                returnembed=True,
+                on_pick=on_pick,
+            )
+            await interaction.response.edit_message(view=view)
+            return
+
         modal = EditMessageContentModal(
             self.cog, self.guild_id, self.panel_data['message_id'],
-            self.panel_data['message_content'], self
+            self.panel_data.get('message_content') or "", self
         )
         await interaction.response.send_modal(modal)
 
@@ -690,6 +894,15 @@ class RepeatingMessages(commands.Cog):
                     )
                 """
             )
+            for sql in (
+                "ALTER TABLE scheduled_messages ADD COLUMN response_type TEXT DEFAULT 'text'",
+                "ALTER TABLE scheduled_messages ADD COLUMN embed_content TEXT",
+                "ALTER TABLE scheduled_messages ADD COLUMN embed_data TEXT",
+            ):
+                try:
+                    await db.execute(sql)
+                except Exception:
+                    pass
             await db.execute(
                 "CREATE INDEX IF NOT EXISTS idx_sm_active ON scheduled_messages(is_active, next_send_time)")
             await db.commit()
@@ -702,6 +915,14 @@ class RepeatingMessages(commands.Cog):
                 columns = [column[0] for column in cursor.description]
                 for row in rows:
                     data = dict(zip(columns, row))
+                    if data.get("response_type") is None:
+                        data["response_type"] = "text"
+                    raw_embed = data.get("embed_data")
+                    if raw_embed:
+                        try:
+                            data["embed_data"] = json.loads(raw_embed)
+                        except Exception:
+                            data["embed_data"] = None
                     g_id = data["guild_id"]
                     m_id = data["message_id"]
 
@@ -778,7 +999,11 @@ class RepeatingMessages(commands.Cog):
                     try:
                         channel = self.bot.get_channel(data["channel_id"]) or await self.bot.fetch_channel(data["channel_id"])
                         if channel:
-                            await channel.send(data["message_content"])
+                            if data.get("response_type") == "embed" and data.get("embed_data"):
+                                embed_obj = discord.Embed.from_dict(data["embed_data"])
+                                await channel.send(content=data.get("embed_content"), embed=embed_obj)
+                            else:
+                                await channel.send(data.get("message_content"))
 
                         new_next_send = now + data["frequency_seconds"]
 
