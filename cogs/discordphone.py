@@ -475,6 +475,12 @@ class DiscordPhone(commands.Cog):
         if any(c_id == interaction.channel.id for c_id, _ in self.queue):
             return await interaction.response.send_message("This channel is already in the matchmaking queue!", ephemeral=True)
 
+        log_chan_id = self.settings_cache.get("log_channel")
+        log_channel = self.bot.get_channel(log_chan_id) if log_chan_id else None
+        if log_channel:
+            await log_channel.send(
+                f" [QUEUE] Channel {interaction.channel.id} from {interaction.guild.name} joined queue.")
+
         matched = await self.try_match(interaction.channel, interaction.user)
         rules_str = "[DiscordPhone Rules](<https://docs.google.com/document/d/1ZuoKDQCrLMcY72PLW9kzTM7a1sS0y6mzyF_eNwV3low/edit?tab=t.0>)"
         tos_str = "[Terms of Service](<https://docs.google.com/document/d/1kUC1P9aRNAwJD-HiP5v8HO-xowRiUGEbOZ-DfvOR2Tk/edit?tab=t.0>)"
@@ -486,10 +492,7 @@ class DiscordPhone(commands.Cog):
                 f"<a:loading:1475121732108025929> You have successfully joined the queue! Waiting for another user...\n\nTo leave the queue, use `!!hangup` or `/discordphone hangup`.\n-# By continuing, you agree to the {rules_str} and {tos_str}. If you don't agree, stop using the bot.",
                 ephemeral=False)
 
-        log_chan_id = self.settings_cache.get("log_channel")
-        log_channel = self.bot.get_channel(log_chan_id) if log_chan_id else None
-        if log_channel:
-            await log_channel.send(f" [QUEUE] Channel {interaction.channel.id} from {interaction.guild.name} joined queue.")
+
 
     @dp_group.command(name="skip", description="Skip the current user")
     async def skip(self, interaction: discord.Interaction):
