@@ -2,6 +2,8 @@ import os
 import logging
 import asyncio
 import discord
+from discord.ext import tasks
+from datetime import time, timezone
 from config import TOKEN, LOGGING_DEBUG_MODE
 from logging.handlers import RotatingFileHandler
 from dopamineframework import Bot
@@ -40,12 +42,32 @@ intents.members = True
 intents.reactions = True
 
 
+REFRESH_TIME = time(hour=0, minute=0, second=0, tzinfo=timezone.utc)
+
+
+@tasks.loop(time=REFRESH_TIME)
+async def daily_refresh():
+    await bot.wait_until_ready()
+
+    cog_name = "cogs.uptimemonitor"
+
+    try:
+        await bot.reload_extension(cog_name)
+    except Exception as e:
+        print(f"Failed to refresh {cog_name}: {e}")
+
+
 bot = Bot(
     command_prefix="!!",
     cogs_path="cogs",
     default_diagnostics=False,
     intents=intents
 )
+
+@bot.event
+async def on_connect():
+    if not daily_refresh.is_running():
+        daily_refresh.start()
 
 @bot.tree.context_menu(name="Get User ID")
 async def get_user_id(interaction: discord.Interaction, message: discord.Message):
