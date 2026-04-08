@@ -29,9 +29,12 @@ class Dblc(commands.Cog):
         self.process.cpu_percent(interval=None)
         self.current_cpu = 0.0
         self.cache_task.start()
+        self.last_uptime = 0
+        self.uptime_check.start()
 
     def cog_unload(self):
         self.cache_task.cancel()
+        self.uptime_check.cancel()
 
     @tasks.loop(seconds=5.0)
     async def cache_task(self):
@@ -73,6 +76,26 @@ class Dblc(commands.Cog):
     async def before_cache_task(self):
         await self.bot.wait_until_ready()
         await asyncio.sleep(10)
+
+    @tasks.loop(minutes=5.0)
+    async def uptime_check(self):
+        await self.bot.wait_until_ready()
+
+        current_uptime = 0
+        if hasattr(self.bot, 'start_time'):
+            current_uptime = time.time() - self.bot.start_time
+
+        if current_uptime < self.last_uptime:
+            try:
+                await self.bot.reload_extension("cogs.uptimemonitor")
+            except Exception as e:
+                print(f"Failed to reload uptimemonitor: {e}")
+
+        self.last_uptime = current_uptime
+
+    @uptime_check.before_loop
+    async def before_uptime_check(self):
+        await self.bot.wait_until_ready()
 
     def generate_latency_graph(self):
         scale_factor = 2
