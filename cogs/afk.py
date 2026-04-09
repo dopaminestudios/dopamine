@@ -63,12 +63,12 @@ class ViewMissedPings(PrivateView):
             display_name = user.mention or (user.name if user else f"User {entry.author_id}")
             msg_link = ""
             if entry.guild_id and entry.channel_id and entry.message_id:
-                msg_link = f" [[Jump]](<https://discord.com/channels/{entry.guild_id}/{entry.channel_id}/{entry.message_id}>)"
+                msg_link = f"[[Jump]](<https://discord.com/channels/{entry.guild_id}/{entry.channel_id}/{entry.message_id}>)"
 
             lines.append(
-                f'{idx}. {display_name} in **{guild.name}**'
-                f'(<t:{entry.timestamp}:d> <t:{entry.timestamp}:t>): '
-                f'"{entry.content}"{msg_link}\n\n'
+                f'{idx}. {display_name} in **{guild.name}** '
+                f'(<t:{entry.timestamp}:d> <t:{entry.timestamp}:t>)\n'
+                f'{entry.content}\n{msg_link}\n\n'
             )
 
         paginator = ViewPaginator(
@@ -89,7 +89,7 @@ class ViewMissedPings(PrivateView):
             sent = False
 
         if sent:
-            await interaction.response.send_message(f"I sent the Missed Pings to your DMs! [Click here to Jump]({link}).", ephemeral=True)
+            await interaction.response.send_message(f"I sent the Missed Pings to your DMs! [[Click here to Jump]]({link}).", ephemeral=True)
             await self.cog.clear_missed_pings(self.user_id)
 
 
