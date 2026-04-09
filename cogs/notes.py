@@ -7,7 +7,7 @@ import asyncio
 from typing import Optional, Dict, List, Any
 from contextlib import asynccontextmanager
 from config import NOTEDB_PATH
-from dopamineframework import ViewPaginator
+from dopamineframework import ViewPaginator, preconditions
 
 note_group = app_commands.Group(name="note", description="Note management commands")
 
@@ -242,6 +242,7 @@ async def _get_names_autocomplete(interaction: discord.Interaction, current: str
 
 @note_group.command(name="create", description="Open the UI to create a note")
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@preconditions.global_cooldown()
 async def note_create(interaction: discord.Interaction):
     cog = await _get_notes_cog(interaction)
     if not cog:
@@ -260,6 +261,7 @@ async def note_create(interaction: discord.Interaction):
 @note_group.command(name="edit", description="Edit an existing note")
 @app_commands.autocomplete(name=_get_names_autocomplete)
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@preconditions.global_cooldown()
 async def note_edit(interaction: discord.Interaction, name: str):
     cog = await _get_notes_cog(interaction)
     if not cog:
@@ -280,6 +282,7 @@ async def note_edit(interaction: discord.Interaction, name: str):
 @note_group.command(name="get", description="Retrieve a note by name")
 @app_commands.autocomplete(name=_get_names_autocomplete)
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@preconditions.global_cooldown()
 async def note_fetch(interaction: discord.Interaction, name: str):
     cog = await _get_notes_cog(interaction)
     if not cog:
@@ -304,6 +307,7 @@ async def note_fetch(interaction: discord.Interaction, name: str):
 
 @note_group.command(name="list", description="List all of your saved notes")
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@preconditions.global_cooldown()
 async def note_list(interaction: discord.Interaction):
     cog = await _get_notes_cog(interaction)
     if not cog:
@@ -341,6 +345,7 @@ async def note_list(interaction: discord.Interaction):
 @note_group.command(name="delete", description="Delete a note by name")
 @app_commands.autocomplete(name=_get_names_autocomplete)
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@preconditions.global_cooldown()
 async def note_delete(interaction: discord.Interaction, name: str):
     cog = await _get_notes_cog(interaction)
     if not cog:

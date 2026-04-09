@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from config import SMDB_PATH
 from dopamineframework import mod_check
-from dopamineframework import PrivateLayoutView
+from dopamineframework import PrivateLayoutView, dopamine_commands
 from cogs.embed import UseEmbedPage
 
 
@@ -980,9 +980,8 @@ class RepeatingMessages(commands.Cog):
         if len(parts) == 2: return f"{parts[0]} and {parts[1]}"
         return f"{', '.join(parts[:-1])}, and {parts[-1]}"
 
-    repeating = app_commands.Group(name="repeating", description="Repeating Message commands")
+    repeating = dopamine_commands.Group(name="repeating", description="Repeating Message commands", permissions_preset="automation")
     @repeating.command(name="message", description="Open the Repeating Messages Dashboard")
-    @app_commands.check(mod_check)
     async def dashboard(self, interaction: discord.Interaction):
         await interaction.response.send_message(
             view=RepeatingMessagesDashboard(interaction.user, self)

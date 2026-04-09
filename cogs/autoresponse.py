@@ -12,7 +12,7 @@ from discord.ext import commands
 from rapidfuzz import fuzz
 
 from config import ARSPDB_PATH
-from dopamineframework import PrivateLayoutView, mod_check
+from dopamineframework import PrivateLayoutView, mod_check, dopamine_commands
 from cogs.embed import UseEmbedPage
 import re
 
@@ -1193,7 +1193,7 @@ class Autoresponse(commands.Cog):
             except Exception:
                 continue
 
-    @app_commands.command(name="autoresponse", description="Open the Autoresponse Dashboard")
+    @dopamine_commands.command(name="autoresponse", description="Open the Autoresponse Dashboard", permissions_preset="automation")
     @app_commands.check(mod_check)
     async def autoresponse_dashboard(self, interaction: discord.Interaction):
         view = AutoresponseDashboard(interaction.user, self, interaction.guild.id)

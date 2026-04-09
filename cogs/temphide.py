@@ -8,6 +8,7 @@ import time
 from contextlib import asynccontextmanager
 from typing import Optional, Dict
 from config import TDB_PATH
+from dopamineframework import dopamine_commands
 
 
 class TempHideCog(commands.Cog):
@@ -165,7 +166,7 @@ class TempHideCog(commands.Cog):
             embed = discord.Embed(title="Error", description="Failed to create message.", color=discord.Color.red())
             await self.send_error_reply(interaction_or_ctx, embed=embed)
 
-    @app_commands.command(name="temphide", description="Send a hidden message that only you can reveal")
+    @dopamine_commands.command(name="temphide", description="Send a hidden message that only you can reveal")
     async def temphide_slash(self, interaction: discord.Interaction, message: str):
         await self.handle_temphide(interaction, message)
 

@@ -9,7 +9,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from config import AFKDB_PATH
-from dopamineframework import ViewPaginator, PrivateView
+from dopamineframework import ViewPaginator, PrivateView, dopamine_commands
 
 
 AFK_BUFFER_SECONDS = 30
@@ -449,7 +449,7 @@ class AFK(commands.Cog):
         reply = f"{ctx.author.mention} you're now AFK: {status}" if status else f"{ctx.author.mention} you're now AFK!"
         await ctx.send(reply)
 
-    @app_commands.command(name="afk", description="Set or update your AFK status.")
+    @dopamine_commands.command(name="afk", description="Set or update your AFK status.")
     @app_commands.describe(
         status="Optional AFK status message.",
         global_mentions="Whether mentions in all servers should trigger AFK responses instead of only the current server.",
@@ -464,8 +464,6 @@ class AFK(commands.Cog):
         role: Optional[discord.Role] = None,
         save_missed_pings: Optional[bool] = True,
     ):
-        if not isinstance(interaction.user, discord.Member):
-            return await interaction.response.send_message("AFK can only be used in servers.", ephemeral=True)
 
         state = self.afk_users.get(interaction.user.id)
         if state:

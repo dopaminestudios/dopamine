@@ -7,7 +7,7 @@ import math
 import re
 import ast
 
-from dopamineframework import mod_check
+from dopamineframework import mod_check, dopamine_commands
 
 from config import FDB_PATH
 
@@ -152,8 +152,7 @@ class FactorialCog(commands.Cog):
             clean_num = int(number) if number == int(number) else number
             await message.reply(f"{clean_num}! = {result_str}\n\nAccidentally Factorial! 🤓\n\n-# [What is a factorial?](<https://en.wikipedia.org/wiki/Factorial>)")
 
-    @app_commands.command(name="factorial", description="Toggle accidental factorial detection for this server.")
-    @app_commands.check(mod_check)
+    @dopamine_commands.command(name="factorial", description="Toggle accidental factorial detection for this server.", permissions_preset="manager")
     async def factorial_toggle(self, interaction: discord.Interaction):
         guild_id = interaction.guild_id
         conn = await self.db_pool.acquire()

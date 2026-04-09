@@ -8,7 +8,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from dopamineframework import PrivateLayoutView, PrivateView, mod_check
+from dopamineframework import PrivateLayoutView, PrivateView, mod_check, dopamine_commands
 from config import EDB_PATH
 from utils.time import get_now_plus_seconds_unix
 
@@ -266,8 +266,7 @@ class Embeds(commands.Cog):
             )
             await db.commit()
 
-    @app_commands.command(name="embed", description="Open the Embed Dashboard.")
-    @app_commands.check(mod_check)
+    @dopamine_commands.command(name="embed", description="Open the Embed Dashboard.", permissions_preset="support")
     async def embed_dashboard_cmd(self, interaction: discord.Interaction):
         view = EmbedDashboard(interaction.user, self)
         await interaction.response.send_message(view=view)

@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from config import MCTDB_PATH
 from dopamineframework import mod_check
 import re
-from dopamineframework import PrivateLayoutView
+from dopamineframework import PrivateLayoutView, dopamine_commands
 
 
 class MemberTrackerEditModal(discord.ui.Modal, title="Edit Member Tracker Settings"):
@@ -489,9 +489,8 @@ class MemberCountTracker(commands.Cog):
         voter_cog = self.bot.get_cog('TopGGVoter')
         return await voter_cog.check_vote_access(user_id) if voter_cog else True
 
-    member = app_commands.Group(name="member", description="Member Tracker commands")
+    member = dopamine_commands.Group(name="member", description="Member Tracker commands", permissions_preset="automation")
     @member.command(name="tracker", description="Open the dashboard for Member Tracker.")
-    @app_commands.check(mod_check)
     async def member_tracker_dashboard(self, interaction: discord.Interaction):
         view = TrackerDashboard(self, interaction.user, interaction.guild)
         await interaction.response.send_message(view=view)

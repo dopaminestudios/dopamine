@@ -11,7 +11,7 @@ from typing import Optional, Dict, Any
 from contextlib import asynccontextmanager
 from dopamineframework import PrivateLayoutView
 from config import WDB_PATH, WELCOMECARD_PATH, BOLDFONT_PATH, MEDIUMFONT_PATH
-from dopamineframework import mod_check
+from dopamineframework import mod_check, dopamine_commands
 import pyvips
 import ctypes
 from pathlib import Path
@@ -672,7 +672,7 @@ class Welcome(commands.Cog):
             if self.member_count_cache[guild_id] <= 0:
                 self.member_count_cache.pop(guild_id)
 
-    @app_commands.command(name="welcome", description="Open the welcome feature dashboard.")
+    @dopamine_commands.command(name="welcome", description="Open the welcome feature dashboard.", permissions_preset="automation")
     @app_commands.check(mod_check)
     async def welcome_dashboard(self, interaction: discord.Interaction):
         await interaction.response.send_message(

@@ -12,6 +12,8 @@ from discord.ext import commands
 
 from config import ALERTDB_PATH
 
+from dopamineframework import dopamine_commands
+
 
 @dataclass
 class CurrentAlert:
@@ -163,13 +165,11 @@ class Alerts(commands.Cog):
 
             await interaction.response.send_message("Alert pushed and cache synced successfully!", ephemeral=True)
 
-    @app_commands.command(name="pa", description=".")
+    @dopamine_commands.command(name="pa", description=".", permissions_preset="bot_owner")
     async def push_alert(self, interaction: discord.Interaction):
-        if interaction.user.id != 758576879715483719:
-            return await interaction.response.send_message("This command is dev-only.", ephemeral=True)
         await interaction.response.send_modal(self.PushAlertModal(self))
 
-    @app_commands.command(name="alert", description="Read the latest alert from the developer.")
+    @dopamine_commands.command(name="alert", description="Read the latest alert from the developer.")
     async def alert(self, interaction: discord.Interaction):
         if not self._current_alert:
             embed = discord.Embed(

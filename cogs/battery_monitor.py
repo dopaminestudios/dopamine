@@ -9,6 +9,8 @@ from typing import List, Optional
 
 from config import BDB_PATH
 
+from dopamineframework import dopamine_commands
+
 
 def is_developer():
     def predicate(interaction: discord.Interaction) -> bool:
@@ -119,10 +121,9 @@ class BatteryMonitor(commands.Cog):
             return [choice for choice in choices if current.lower() in choice.name.lower()]
         return choices
 
-    battery = app_commands.Group(name="battery", description="Commands for the battery monitor.")
+    battery = dopamine_commands.Group(name="battery", description="Commands for the battery monitor.", permissions_preset="bot_owner")
 
     @battery.command(name="start", description="Start a live battery monitor in a specific channel.")
-    @is_developer()
     @app_commands.describe(channel="The channel to send the live monitor to.")
     async def battery_monitor_start(self, interaction: discord.Interaction, channel: discord.TextChannel):
         try:
@@ -154,7 +155,6 @@ class BatteryMonitor(commands.Cog):
 
 
     @battery.command(name="stop", description="Stop a live battery monitor in a channel.")
-    @is_developer()
     @app_commands.autocomplete(channel=monitor_autocomplete)
     @app_commands.describe(channel="The channel where the monitor should be stopped.")
     async def battery_monitor_stop(self, interaction: discord.Interaction, channel: str):

@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, time, timedelta
 import pytz
 import re
-from dopamineframework import PrivateLayoutView
+from dopamineframework import PrivateLayoutView, dopamine_commands, preconditions
 
 from config import SSDB_PATH
 from dopamineframework import mod_check
@@ -227,7 +227,7 @@ class ScheduledSlowmode(commands.Cog):
         return choices[:25]
 
 
-    slowmode_group = app_commands.Group(name="slowmode", description="Manage scheduled slowmode")
+    slowmode_group = dopamine_commands.Group(name="slowmode", description="Manage scheduled slowmode")
     schedule_group = app_commands.Group(name="schedule", description="Configure slowmode schedules",
                                         parent=slowmode_group)
 
@@ -235,7 +235,7 @@ class ScheduledSlowmode(commands.Cog):
     @app_commands.describe(channel="The channel to configure slowmode for",
                            interval="The slowmode delay interval (or Disable)")
     @app_commands.autocomplete(interval=interval_autocomplete_with_disable)
-    @app_commands.check(mod_check)
+    @preconditions.has_permissions(manage_slowmode=True)
     async def configure_slowmode(self, interaction: discord.Interaction, channel: discord.TextChannel, interval: int):
         try:
             await channel.edit(slowmode_delay=interval)
@@ -260,7 +260,7 @@ class ScheduledSlowmode(commands.Cog):
                            timezone="Your timezone region", start_time="Start time (e.g., 14:00 or 02:00 PM)",
                            end_time="End time (e.g., 18:00 or 06:00 PM)")
     @app_commands.autocomplete(timezone=timezone_autocomplete, interval=interval_autocomplete)
-    @app_commands.check(mod_check)
+    @preconditions.has_permissions(manage_slowmode=True)
     async def schedule_start(self, interaction: discord.Interaction, channel: discord.TextChannel, interval: int,
                              timezone: str, start_time: str, end_time: str):
         if not await self.check_vote_access(interaction.user.id):
@@ -318,7 +318,7 @@ class ScheduledSlowmode(commands.Cog):
 
     @schedule_group.command(name="delete", description="Delete all slowmode schedules for a channel")
     @app_commands.describe(channel="The channel to clear schedules for")
-    @app_commands.check(mod_check)
+    @preconditions.has_permissions(manage_slowmode=True)
     async def schedule_delete(self, interaction: discord.Interaction, channel: discord.TextChannel):
         if channel.id not in self._schedule_cache or not self._schedule_cache[channel.id]:
             return await interaction.response.send_message(embed=discord.Embed(title="No Schedules",

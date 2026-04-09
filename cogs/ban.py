@@ -5,6 +5,7 @@ import aiosqlite
 import asyncio
 import contextlib
 from config import BAN_PATH
+from dopamineframework import dopamine_commands
 
 class BanningCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -115,11 +116,7 @@ class BanningCog(commands.Cog):
 
         return True
 
-    async def is_dev(interaction: discord.Interaction) -> bool:
-        return await interaction.client.is_owner(interaction.user)
-
-    @app_commands.command(name="dub", description=".")
-    @app_commands.check(is_dev)
+    @dopamine_commands.command(name="dub", description=".", permissions_preset="bot_owner")
     @app_commands.describe(user_id="The ID of the user to ban", reason="The reason for the ban")
     async def devuserban(self, interaction: discord.Interaction, user_id: str, reason: str):
         try:
@@ -138,7 +135,7 @@ class BanningCog(commands.Cog):
         else:
             await interaction.response.send_message(f"⚠️ User `{target_id}` is already banned.", ephemeral=True)
 
-    @app_commands.command(name="dgb", description=".")
+    @dopamine_commands.command(name="dgb", description=".", permissions_preset="bot_owner")
     @app_commands.check(is_dev)
     @app_commands.describe(guild_id="Select a guild to ban", reason="The reason for the ban")
     async def devguildban(self, interaction: discord.Interaction, guild_id: str, reason: str):

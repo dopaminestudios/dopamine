@@ -9,7 +9,7 @@ import json
 import discord
 from discord import app_commands, Interaction, TextChannel
 from discord.ext import commands, tasks
-from dopamineframework import mod_check
+from dopamineframework import mod_check, dopamine_commands
 
 from config import DDB_PATH, WORDS_PATH
 
@@ -200,14 +200,13 @@ class DailyWords(commands.Cog):
             self.next_send_time = self.next_send_time + timedelta(hours=23)
             await self.save_next_time()
 
-    daily = app_commands.Group(name="daily", description="Daily automated messages.")
+    daily = dopamine_commands.Group(name="daily", description="Daily automated messages.", permissions_preset="automation")
 
     words_group = app_commands.Group(name="words", description="Daily word commands", parent=daily)
 
     cat_group = app_commands.Group(name="cat", description="Daily cat image commands", parent=daily)
 
     @words_group.command(name="start", description="Start daily word messages in a channel.")
-    @app_commands.check(mod_check)
     @app_commands.describe(
         channel="The channel where you want the daily word to be posted (defaults to current channel).")
     async def daily_words_start(self, interaction: Interaction, channel: discord.TextChannel = None):

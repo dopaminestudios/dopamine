@@ -6,7 +6,7 @@ import asyncio
 import datetime
 import time
 from config import SPDB_PATH
-from dopamineframework import PrivateLayoutView
+from dopamineframework import PrivateLayoutView, dopamine_commands, preconditions
 
 class ConfirmationView(PrivateLayoutView):
     def __init__(self, user, cog, title_text: str, body_text: str):
@@ -148,10 +148,10 @@ class SelfPurge(commands.Cog):
         self.purge_scheduler.cancel()
         await self.db.close()
 
-    purge_group = app_commands.Group(name="selfpurge", description="Manage self-message purges.")
+    purge_group = dopamine_commands.Group(name="selfpurge", description="Manage self-message purges.")
 
-    @purge_group.command(name="disable", description="[Mod] Disable self-purges for the server.")
-    @app_commands.default_permissions(manage_messages=True)
+    @purge_group.command(name="disable", description="Disable self-purges for the server.")
+    @preconditions.has_permissions(manage_messages=True)
     async def disable(self, interaction: discord.Interaction):
         guild_id = interaction.guild_id
 
@@ -162,8 +162,8 @@ class SelfPurge(commands.Cog):
 
         await interaction.response.send_message("Self-purge has been disabled for this server.", ephemeral=True)
 
-    @purge_group.command(name="enable", description="[Mod] Enable self-purges for the server.")
-    @app_commands.default_permissions(manage_messages=True)
+    @purge_group.command(name="enable", description="Enable self-purges for the server.")
+    @preconditions.has_permissions(manage_messages=True)
     async def enable(self, interaction: discord.Interaction):
         guild_id = interaction.guild_id
         if self.cache_settings.get(guild_id, False):
@@ -204,7 +204,7 @@ class SelfPurge(commands.Cog):
 
     @purge_group.command(name="modcancel", description="[Mod] Cancel a specific member's scheduled purge.")
     @app_commands.describe(member="The member whose scheduled purge you want to cancel.")
-    @app_commands.default_permissions(manage_messages=True)
+    @preconditions.has_permissions(manage_messages=True)
     async def modcancel(self, interaction: discord.Interaction, member: discord.Member):
         guild_id = interaction.guild_id
         user_id = member.id

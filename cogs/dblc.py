@@ -14,6 +14,7 @@ from PIL import Image, ImageDraw, ImageFont
 from collections import deque
 from config import BOLDFONT_PATH, API_TOKEN, HEARTBEAT_ID
 from dopamineframework.ext.path import framework_version
+from dopamineframework import dopamine_commands
 from typing import Union
 from utils.log import LoggingManager
 
@@ -179,7 +180,7 @@ class Dblc(commands.Cog):
         buffer.seek(0)
         return buffer
 
-    @app_commands.command(name="avatar", description="Get a user's avatar.")
+    @dopamine_commands.command(name="avatar", description="Get a user's avatar.")
     @app_commands.describe(user="The user whose avatar you want to see.")
     async def avatar(self, interaction: discord.Interaction, user: discord.User):
         embed = discord.Embed(
@@ -190,9 +191,8 @@ class Dblc(commands.Cog):
         embed.set_image(url=user.avatar.url if user.avatar else user.default_avatar.url)
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="purge", description="Delete recent messages.")
+    @dopamine_commands.command(name="purge", description="Delete recent messages.", permissions_preset="support")
     @app_commands.check(mod_check)
-    @app_commands.checks.has_permissions(manage_messages=True)
     @app_commands.describe(number="Number of messages to delete (max 100)")
     async def purge(self, interaction: discord.Interaction, number: int):
         number = max(1, min(number, 100))
@@ -232,7 +232,7 @@ class Dblc(commands.Cog):
 
         await interaction.edit_original_response(content=f"Successfully purged **{deleted_count}** message(s).")
 
-    @app_commands.command(name="ban", description="Fake-ban someone (cosmetic).")
+    @dopamine_commands.command(name="ban", description="Fake-ban someone (cosmetic).")
     @app_commands.describe(member="Who to fake-ban", duration="How long (text)", reason="Optional reason")
     async def ban(self, interaction: discord.Interaction, member: discord.Member | None = None,
                         duration: str | None = None, reason: str | None = None):
@@ -263,8 +263,7 @@ class Dblc(commands.Cog):
                 except Exception:
                     pass
 
-    @app_commands.command(name="echo", description="Make the bot say a message in a channel.")
-    @app_commands.check(mod_check)
+    @dopamine_commands.command(name="echo", description="Make the bot say a message in a channel.", permissions_preset="automation")
     @app_commands.describe(channel="Where to send the message", message="What to say")
     async def echo(self, interaction: discord.Interaction, channel: discord.TextChannel, message: str):
         try:
@@ -273,7 +272,7 @@ class Dblc(commands.Cog):
         except Exception as e:
             await interaction.response.send_message(f"Error: Could not send message: {e}", ephemeral=True)
 
-    @app_commands.command(name="say", description="Ask the bot to say something")
+    @dopamine_commands.command(name="say", description="Ask the bot to say something")
     @app_commands.describe(channel="Where to send it", message="What to say")
     async def say(self, interaction: discord.Interaction, channel: discord.TextChannel, message: str):
         try:
@@ -283,14 +282,14 @@ class Dblc(commands.Cog):
         except Exception as e:
             await interaction.response.send_message(f"Error: Could not send message: {e}", ephemeral=True)
 
-    @app_commands.command(name="servercount", description="Get the number of servers the bot is in.")
+    @dopamine_commands.command(name="servercount", description="Get the number of servers the bot is in.")
     async def servercount(self, interaction: discord.Interaction):
         server_count = len(self.bot.guilds)
         await interaction.response.send_message(f"I am currently in **{server_count}** servers.")
 
-    latency = app_commands.Group(name="latency", description="Latency-related commands.")
+    latency = dopamine_commands.Group(name="latency", description="Latency-related commands.")
 
-    @app_commands.command(name="ping", description="Get detailed latency and bot information")
+    @dopamine_commands.command(name="ping", description="Get detailed latency and bot information")
 
     async def info(self, interaction: discord.Interaction):
         def format_uptime(seconds):
@@ -423,7 +422,7 @@ class Dblc(commands.Cog):
             await interaction.edit_original_response(content="Not enough data yet! The bot or cog was restarted very recently. Please wait a few minutes.")
 
 
-    @app_commands.command(name="emoji", description="Displays detailed information about a specific emoji")
+    @dopamine_commands.command(name="emoji", description="Displays detailed information about a specific emoji")
     @app_commands.describe(emoji="The emoji you want to inspect (Custom or Unicode)")
     async def emoji_info(self, interaction: discord.Interaction, emoji: str):
         ctx = await self.bot.get_context(interaction)
@@ -461,7 +460,7 @@ class Dblc(commands.Cog):
 
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="invite", description="Get the official links for Dopamine")
+    @dopamine_commands.command(name="invite", description="Get the official links for Dopamine")
     async def invite(self, interaction: discord.Interaction):
 
         view = discord.ui.LayoutView()
@@ -488,7 +487,7 @@ class Dblc(commands.Cog):
 
         await interaction.response.send_message(view=view)
 
-    @app_commands.command(name="vote", description="Get the link to vote for Dopamine on top.gg")
+    @dopamine_commands.command(name="vote", description="Get the link to vote for Dopamine on top.gg")
     async def vote(self, interaction: discord.Interaction):
         view = discord.ui.View()
 
@@ -501,12 +500,8 @@ class Dblc(commands.Cog):
                                                 view=view)
 
 
-    @app_commands.command(name="ls", description="List all servers the bot is in.")
+    @dopamine_commands.command(name="ls", description="List all servers the bot is in.", permissions_preset="bot_owner")
     async def ls(self, interaction: discord.Interaction):
-        if not await self.bot.is_owner(interaction.user):
-            await interaction.response.send_message(":shushing_face:", ephemeral=True)
-            return
-
         guilds = self.bot.guilds
         if not guilds:
             await interaction.response.send_message("I am not in any servers!", ephemeral=True)

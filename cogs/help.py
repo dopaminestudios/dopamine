@@ -5,6 +5,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from dopamineframework import dopamine_commands
+
 EMBED_COLOR = discord.Color(0x944ae8)
 VOTE_URL = "https://top.gg/bot/1411266382380924938/vote"
 SUPPORT_URL = "https://discord.gg/VWDcymz648"
@@ -264,7 +266,7 @@ class HelpCog(commands.Cog):
         embeds_map = self._build_embeds()
         await ctx.send(embed=embeds_map["Home"], view=HelpView(ctx.author, embeds_map, self.bot))
 
-    @app_commands.command(name="help", description="Show the bot help menu with category navigation.")
+    @dopamine_commands.command(name="help", description="Show the bot help menu with category navigation.")
     async def help_slash(self, interaction: discord.Interaction):
         embeds_map = self._build_embeds()
         await interaction.response.send_message(embed=embeds_map["Home"], view=HelpView(interaction.user, embeds_map, self.bot))

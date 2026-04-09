@@ -4,7 +4,7 @@ from discord.ext import commands
 from utils.log import LoggingManager
 from dopamineframework import mod_check
 from discord.ui import Button, View, TextDisplay
-from dopamineframework import PrivateLayoutView
+from dopamineframework import PrivateLayoutView, dopamine_commands
 
 
 class DestructiveConfirmationView(PrivateLayoutView):
@@ -78,9 +78,8 @@ class Logging(commands.Cog):
         if self.manager:
             await self.manager.close_pools()
 
-    log = app_commands.Group(name="logging", description="Manage logging feature.")
+    log = dopamine_commands.Group(name="logging", description="Manage logging feature.", permissions_preset="security")
     @log.command(name="set", description="Set the logging channel for logs.")
-    @app_commands.check(mod_check)
     @app_commands.describe(channel="Channel to use for logs")
     async def setlog(self, interaction: discord.Interaction, channel: discord.TextChannel):
         already = await self.manager.log_get(interaction.guild.id)
@@ -102,13 +101,11 @@ class Logging(commands.Cog):
             color=discord.Color.green()), ephemeral=True)
 
     @log.command(name="get", description="Check what channel is set as the logging channel.")
-    @app_commands.check(mod_check)
     async def getlog(self, interaction: discord.Interaction):
         channel_id = await self.manager.log_get(interaction.guild.id)
         await interaction.response.send_message(f"The logging channel is currently set to <#{channel_id}>.", ephemeral=True)
 
     @log.command(name="test", description="Test whether the bot can access the logging channel or not.")
-    @app_commands.check(mod_check)
     async def testlog(self, interaction: discord.Interaction):
         channel_id = await self.manager.log_get(interaction.guild.id)
         if not channel_id:
@@ -125,7 +122,6 @@ class Logging(commands.Cog):
         await interaction.response.send_message("Test message has been sent successfully!", ephemeral=True)
 
     @log.command(name="disable", description="Disable logging and delete logging channel for this server from database.")
-    @app_commands.check(mod_check)
     async def deletelog(self, interaction: discord.Interaction):
         exists = await self.manager.log_get(interaction.guild.id)
         if not exists:

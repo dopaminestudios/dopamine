@@ -8,7 +8,7 @@ from typing import Optional, Dict, Set, Tuple, Any
 import time
 from contextlib import asynccontextmanager
 from config import SDB_PATH
-from dopamineframework import PrivateLayoutView
+from dopamineframework import PrivateLayoutView, dopamine_commands
 
 
 class ThresholdModal(discord.ui.Modal, title="Edit Star Threshold"):
@@ -577,8 +577,7 @@ class StarboardCog(commands.Cog):
         except:
             pass
 
-    @app_commands.command(name="starboard", description="Configure the Starboard via Dashboard")
-    @app_commands.checks.has_permissions(manage_guild=True)
+    @dopamine_commands.command(name="starboard", description="Configure the Starboard via Dashboard", permissions_preset="automation")
     async def starboard_dashboard(self, interaction: discord.Interaction):
         await self.get_guild_settings(interaction.guild.id)
         view = StarboardDashboard(interaction.user, self, interaction.guild.id)
