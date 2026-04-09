@@ -44,6 +44,7 @@ bot = Bot(
     command_prefix="!!",
     cogs_path="cogs",
     default_diagnostics=False,
+    minimal_cacheing=True,
     intents=intents
 )
 
