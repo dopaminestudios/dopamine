@@ -9,7 +9,7 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 TOPGG_TOKEN = os.getenv("TOPGG_TOKEN")
 OVERRIDE_VOTEWALL = os.getenv("OVERRIDE_VOTEWALL", True)
 DEBUG_MODE = os.getenv("LOGGING_DEBUG_MODE")
-if DEBUG_MODE == "True":
+if DEBUG_MODE.lower() == "true":
     LOGGING_DEBUG_MODE = True
 else:
     LOGGING_DEBUG_MODE = False

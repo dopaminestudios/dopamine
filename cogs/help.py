@@ -129,17 +129,17 @@ class HelpCog(commands.Cog):
         )
 
         moderation_description = (
-            "Dopamine replaces traditional mute/kick/ban commands with a **12-point escalation system**. "
-            "Moderators assign points, and the bot handles the math and the punishment automatically.\n\n"
+            "Dopamine replaces traditional mute/kick/ban commands with a completely customizable 5-strike escalation system. "
+            "Moderators assign warnings, and the bot handles the math and the punishment automatically based on what punishment you've set for the specific warning count.\n\n"
             "**Punishment Logic (Customizable via `/moderation dashboard`):**\n"
             "• 1 Warning: Official Warning\n"
             "• 2 Warnings: 60-minute mute/timeout\n"
             "• 3 Warnings: 12-hour ban\n"
-            "• 4 Warnings: 7-day Ban\n• 5 Warnings: Permanent Ban\n> The points system is completely customizable, and you can customize point amounts for each action or disable an action completely.\n\n"
+            "• 4 Warnings: 7-day Ban\n• 5 Warnings: Permanent Ban\n> The moderation system is completely customizable, and you can customize warnings amounts for each action, create new actions with custom punishment, durations, and warning counts, and delete existing ones.\n\n"
             
             "**Core Mechanics:**\n"
-            "• **Decay:** Points drop by 1 every two weeks (can be customized) if no new infractions occur.\n"
-            "• **Rejoin:** Users unbanned via the bot start at 4 points (can be customized) to prevent immediate repeat offenses."
+            "• **Decay:** Warnings drop by 1 every two weeks (can be customized) if no new infractions occur.\n"
+            "• **Rejoin:** Users unbanned via the bot start at 4 warnings (can be customized) to prevent immediate repeat offenses."
         )
         page2 = create_base_embed("Automated Moderation", moderation_description)
         page2.add_field(name="Management Commands", value=(
