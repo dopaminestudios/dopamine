@@ -227,9 +227,9 @@ class ScheduledSlowmode(commands.Cog):
         return choices[:25]
 
 
-    slowmode_group = dopamine_commands.Group(name="slowmode", description="Manage scheduled slowmode")
-    schedule_group = app_commands.Group(name="schedule", description="Configure slowmode schedules",
-                                        parent=slowmode_group)
+    slowmode_group = app_commands.Group(name="slowmode", description="Manage scheduled slowmode")
+    schedule_group = dopamine_commands.Group(name="schedule", description="Configure slowmode schedules",
+                                        parent=slowmode_group, permissions_preset="manager")
 
     @slowmode_group.command(name="configure", description="Directly configure slowmode for a channel.")
     @app_commands.describe(channel="The channel to configure slowmode for",

@@ -463,9 +463,9 @@ class Nickname(commands.Cog):
             except (discord.Forbidden, discord.HTTPException):
                 pass
 
-    nickname_group = dopamine_commands.Group(name="nickname", description="Nickname commands", permissions_preset="moderation")
+    nickname_group = app_commands.Group(name="nickname", description="Nickname commands")
 
-    moderator_group = app_commands.Group(name="moderator", description="Nickname Moderator commands group", parent=nickname_group)
+    moderator_group = dopamine_commands.Group(name="moderator", description="Nickname Moderator commands group", parent=nickname_group, permissions_preset="moderation")
 
     @moderator_group.command(name="verify", description="Verify a user's nickname to make them immune to the moderation.")
     async def verify_user(self, interaction: discord.Interaction, member: discord.Member):

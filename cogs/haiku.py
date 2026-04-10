@@ -356,8 +356,8 @@ class HaikuDetector(commands.Cog):
 
         await self.haiku_queue.put(message)
 
-    haiku_group = dopamine_commands.Group(name="haiku", description="Haiku detection commands", permissions_preset="automation")
-    detection_group = app_commands.Group(name="detection", description="Haiku detection settings", parent=haiku_group)
+    haiku_group = app_commands.Group(name="haiku", description="Haiku detection commands")
+    detection_group = dopamine_commands.Group(name="detection", description="Haiku detection settings", parent=haiku_group, permissions_preset="automation")
 
     @detection_group.command(name="enable", description="Enable haiku detection for the whole server")
     async def enable_haiku_detection(self, interaction: discord.Interaction):

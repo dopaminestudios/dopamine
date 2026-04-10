@@ -200,11 +200,11 @@ class DailyWords(commands.Cog):
             self.next_send_time = self.next_send_time + timedelta(hours=23)
             await self.save_next_time()
 
-    daily = dopamine_commands.Group(name="daily", description="Daily automated messages.", permissions_preset="automation")
+    daily = app_commands.Group(name="daily", description="Daily automated messages.")
 
-    words_group = app_commands.Group(name="words", description="Daily word commands", parent=daily)
+    words_group = dopamine_commands.Group(name="words", description="Daily word commands", parent=daily, permissions_preset="automation")
 
-    cat_group = app_commands.Group(name="cat", description="Daily cat image commands", parent=daily)
+    cat_group = dopamine_commands.Group(name="cat", description="Daily cat image commands", parent=daily, permissions_preset="automation")
 
     @words_group.command(name="start", description="Start daily word messages in a channel.")
     @app_commands.describe(
