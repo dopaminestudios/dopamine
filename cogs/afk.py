@@ -66,9 +66,9 @@ class ViewMissedPings(PrivateView):
                 msg_link = f"[[Jump]](<https://discord.com/channels/{entry.guild_id}/{entry.channel_id}/{entry.message_id}>)"
 
             lines.append(
-                f'{idx}. {display_name} in **{guild.name}** '
-                f'(<t:{entry.timestamp}:d> <t:{entry.timestamp}:t>)\n'
-                f'{entry.content}\n{msg_link}\n\n'
+                f'### {idx}. {display_name} (<t:{entry.timestamp}:d> <t:{entry.timestamp}:t>) in **{guild.name}**\n'
+                f'{msg_link}\n'
+                f'{entry.content}\n\n'
             )
 
         paginator = ViewPaginator(
